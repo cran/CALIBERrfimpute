@@ -1,0 +1,16 @@
+citHeader("To cite package 'CALIBERrfimpute' in publications use:")
+
+year <- sub(".*(2[[:digit:]]{3})-.*", "\\1", meta$Date, perl = TRUE)
+vers <- paste("R package version", meta$Version)
+
+citEntry(entry="Manual",
+        title = "CALIBERrfimpute: Imputation in MICE using Random Forest",
+        author = personList(as.person("Anoop Shah")),
+        year = year,
+        note = vers,
+
+        textVersion =
+        paste("Anoop Shah (",
+              year,
+              "). CALIBERrfimpute: Imputation in MICE using Random Forest. ",
+              vers, ".", sep=""))

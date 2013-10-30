@@ -1,0 +1,25 @@
+=====================================
+Version 0.1-2
+planned release to CRAN
+=====================================
+
+CHANGES:
+
+- A new option: maxnodes (maximum number of
+  nodes in regresion tree)
+
+=====================================
+Version 0.1-1
+second version on R-Forge
+=====================================
+
+BUG FIXES:
+
+- Allow factors with missing categories in rfcat
+- Allow single predictor for imputation models
+
+=====================================
+Version 0.1-0
+=====================================
+
+Initial version

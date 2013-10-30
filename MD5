@@ -1,0 +1,17 @@
+13b94acbb31b26f618e95ed64075e112 *DESCRIPTION
+c53468fe09839766e66005a5e3750333 *NAMESPACE
+feb60fb7facad7a737b6022ae6e20b26 *NEWS
+ef968b089e5aa83db09dd76800a218bc *R/makemar.R
+c02d13ba906faacea68cba6234bb855d *R/mice.impute.rfcat.R
+39a4be6235782b682d6d5a761d3b8cfa *R/mice.impute.rfcont.R
+8ba6da8f240d6f69ad7a1408f4fb81df *R/setRFoptions.R
+ce8512d3a637d92451c9c5fe7bcb9e41 *R/simdata.R
+88edd9644cd362e8f445355e8c524c18 *inst/CITATION
+eff321ac6e60cd136664f324006a9b81 *inst/doc/index.html
+dd649a0aec2ee7bcb1f93d75c2e1dfd9 *inst/doc/simstudy.pdf
+603b52910f453847853fe41c66f87104 *man/CALIBERrfimpute-package.Rd
+fb21a47c037599a58bd258803c8462ad *man/makemar.Rd
+8f5ad81e594b41674746d3e7c1aaa847 *man/mice.impute.rfcat.Rd
+de5f934f97389ffadef81e6ba9848fd5 *man/mice.impute.rfcont.Rd
+c00125d04cdbf4e9ad73a9ff18524b06 *man/setRFoptions.Rd
+d748df9fdd6ec8cf19f3568b589adfe8 *man/simdata.Rd
