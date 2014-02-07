@@ -1,6 +1,6 @@
 mice.impute.rfcat <- function(y, ry, x,
 	ntree_cat = NULL, nodesize_cat = NULL, 
-	maxnodes_cat = NULL, ...){
+	maxnodes_cat = NULL, ntree = NULL, ...){
 	# y is the vector of y (observed and unobserved)
 	# ry is a vector of indicators as to whether y is observed
 	# x is the matrix of predictors
@@ -12,6 +12,12 @@ mice.impute.rfcat <- function(y, ry, x,
 	xobs <- as.matrix(as.matrix(x[ry, ])[bootsample, ])
 	xmiss <- as.matrix(x[!ry, ])
 	
+	# Use ntree to pass the number of trees (consistent with
+	# mice.impute.rf in the mice package)
+	if (is.null(ntree_cat) & !is.null(ntree)){
+		ntree_cat <- ntree
+	}
+
 	if (is.null(ntree_cat)){
 		if (is.null(getOption('CALIBERrfimpute_ntree_cat'))){
 			ntree_cat <- 10

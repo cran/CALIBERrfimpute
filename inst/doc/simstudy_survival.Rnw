@@ -1,0 +1,870 @@
+\documentclass{scrartcl}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage[top=2cm,bottom=2.5cm,left=3cm,right=3cm]{geometry}
+%\VignetteIndexEntry{Comparison of parametric and Random Forest MICE in imputation of missing data in survival analysis}
+
+% This is a simulation study, testing various imputation
+% methods in a survival scenario with two fully
+% observed continuous variables and one partially
+% observed continuous variable, missingness at random
+% dependent on the observed variable.
+
+<<echo=FALSE,results=hide>>=
+library(CALIBERrfimpute)
+library(missForest)
+library(survival)
+library(xtable)
+library(rpart)
+
+kPmiss <- 0.2 # probability of missingness
+kLogHR <- 0.5 # true log hazard ratio
+
+# To analyse samples of more than 200 patients, (recommend about 2000,
+# but this will slow down the program), set NPATS before running
+# this vignette.
+if (!exists('NPATS')){
+	kSampleSize <- 200 # number of patients in simulated datasets
+} else {
+	kSampleSize <- NPATS
+}
+# e.g.
+# NPATS <- 2000
+
+# To analyse more than 3 samples, set N to a number greater than 3
+# e.g.
+# N <- 1000
+@
+
+\title{\Large Comparison of parametric and Random Forest MICE in imputation of missing data in survival analysis}
+
+\author{Anoop D. Shah, Jonathan W. Bartlett, James Carpenter, \\ Owen Nicholas and Harry Hemingway}
+
+\usepackage{mathptmx}
+\usepackage{helvet}
+\usepackage{hyperref}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+
+This is a simulation study comparing various methods for imputation of missing covariate data in a survival analysis in which there are interactions between the predictor variables. We compare our new Random Forest method for MICE (Multivariate Imputation by Chained Equations) with other imputation methods and full data analysis. In our Random Forest method (RFcont), the conditional mean missing values are predicted using Random Forest and imputed values are drawn from Normal distributions centred on the predicted means \cite{shah}.
+
+We also perform a comparison with the methods recently published by Doove et al.\ \cite{doove}:  mice.impute.cart (classification and regression trees in MICE) and mice.impute.rf (MICE using Random Forests).
+
+\section{Methods}
+
+We used the R packages \textbf{CALIBERrfimpute}, \textbf{survival}, \textbf{xtable}, \textbf{missForest} and \textbf{randomForest}. We created simulated survival datasets with two fully observed predictor variables ($x_1$, $x_2$) and a partially observed predictor ($x_3$), which depends on $x_1$, $x_2$ and their interaction.  They were generated as follows:
+
+\begin{description}
+\item [$x_1$] Standard normal distribution
+\item [$x_2$] Standard normal distribution, independent of $x_1$
+\item [$x_3$] Derived from $x_1$ and $x_2$: $x_3 = 0.5(x_1 + x_2 - x_1.x_2) + e$
+      where $e$ is normally distributed with mean 0 and variance 1.
+\end{description}
+
+The equation for the log hazard of patient $i$ was given by:
+
+\begin{equation}
+h_i = \beta_{1} x_{1i} + \beta_{2} x_{2i} + \beta_{3} x_{3i}
+\end{equation}
+
+where all the $\beta$ coefficients were set to \Sexpr{kLogHR}.
+
+We used an exponential distribution to generate a survival time for each patient. We also generated an observation time for each patient, as a random draw from a uniform distribution bounded by zero and the 50\textsuperscript{th} percentile of survival time. If the observation time was less than the survival time, the patient was considered as censored (event indicator 0, and the patient's follow-up ends on their censoring date), otherwise the event indicator was 1, with follow-up ending on the date of event.
+
+<<echo=FALSE>>=
+
+#### DATA GENERATING FUNCTIONS ####
+
+makeSurv <- function(n = 2000, loghr = kLogHR){
+	# Creates a survival cohort of n patients. Assumes that censoring is
+	# independent of all other variables
+	
+	# x1 and x2 are random normal variables
+	data <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
+	
+	# Create the x3 variable
+	data$x3 <- 0.5 * (data$x1 + data$x2 - data$x1 * data$x2) + rnorm(n)
+	
+	# Underlying log hazard ratio for all variables is the same
+	data$y <- with(data, loghr * (x1 + x2 + x3))
+	data$survtime <- rexp(n, exp(data$y))
+
+	# Censoring - assume uniform distribution of observation times
+	# up to a maximum
+	obstime <- runif(nrow(data), min = 0,
+		max = quantile(data$survtime, 0.5))
+	data$event <- as.integer(data$survtime <= obstime)
+	data$time <- pmin(data$survtime, obstime)
+	data$cumhaz <- nelsonaalen(data, time, event)
+	
+	# True log hazard and survival time are not seen in the data
+	# so remove them
+	data$y <- NULL
+	data$survtime <- NULL
+	
+	return(data)
+}
+
+makeMarSurv <- function(data, pmissing = kPmiss){
+	# Introduces missing data dependent on event indicator
+	# and cumulative hazard and x1 and x2
+	
+	logistic <- function(x){
+		exp(x) / (1 + exp(x))
+	}
+
+	predictions <- function(lp, n){
+		# uses the vector of linear predictions (lp) from a logistic model
+		# and the expected number of positive responses (n) to generate
+		# a set of predictions by modifying the baseline
+	
+		trialn <- function(lptrial){
+			sum(logistic(lptrial))
+		}
+		stepsize <- 32
+		lptrial <- lp
+		while(abs(trialn(lptrial) - n) > 1){
+			if (trialn(lptrial) > n){
+				# trialn bigger than required 
+				lptrial <- lptrial - stepsize
+			} else {
+				lptrial <- lptrial + stepsize
+			}
+			stepsize <- stepsize / 2
+		}
+		# Generate predictions from binomial distribution
+		as.logical(rbinom(logical(length(lp)), 1, logistic(lptrial)))
+	}
+
+	data$x3[predictions(0.1 * data$x1 + 0.1 * data$x2 +
+		0.1 * data$cumhaz + 0.1 * data$event, nrow(data) * pmissing)] <- NA
+	return(data)	
+}
+
+#### IMPUTATION FUNCTIONS FROM DOOVE AND VAN BUUREN ####
+
+mice.impute.rf <- function(y, ry, x, ntrees = 100,
+	nodesize = 5, ...){
+	# Use default mtry, i.e. one third the number of predictors for
+	# categorical variables, square root of the number of predictors
+	# for continuous dependent variables
+	xobs <- x[ry,]
+	xmis <- x[!ry,]
+	yobs <- y[ry]
+	# Function to create a single tree
+	onetree <- function(xobs, xmis, yobs){
+		fit <- randomForest(yobs ~ ., data = cbind(yobs, xobs),
+			ntree = 1, replace = TRUE, type = regression,
+			sampsize = length(yobs), nodesize = 5)
+		leafnr <- predict(object = fit, newdata = xobs,
+			nodes = T)
+		nodes <- predict(object = fit, newdata = xmis,
+			nodes = T)
+		# Return a vector of observed y values that are
+		# part of the same terminal leaf as the predicted
+		# missing y value
+		donor <- lapply(nodes, function(s){
+			yobs[leafnr == s]
+		})
+		return(donor)
+	}
+	# Create a matrix of vectors of donors, from the number
+	# of trees desired
+	forest <- sapply(1:(ntrees = ntrees), FUN = function(s){
+		onetree(xobs, xmis, yobs)
+	})
+	# For each missing value, randomly choose a donor value
+	# from any of the possible donor values across all trees
+	impute <- apply(forest, MARGIN = 1, FUN = function(s){
+		sample(unlist(s), 1)
+	})
+	return(impute)
+}
+
+mice.impute.cart <- function(y, ry, x, minbucket = 5, cp = 1e-04,
+	...){
+	xobs <- x[ry,]
+	xmis <- x[!ry,]
+	yobs <- y[ry]
+	if (is.factor(yobs)==F){
+		fit <- rpart(yobs~., data = cbind(yobs,xobs), method = "anova",
+			control = rpart.control(minbucket = minbucket, cp = cp), ...)
+		leafnr  <- floor(as.numeric(row.names(fit$frame[fit$where,])))
+		fit$frame$yval <- as.numeric(row.names(fit$frame))
+		nodes <- predict(object = fit, newdata = xmis)
+		donor <- lapply(nodes, function(s) yobs[leafnr == s])
+		impute <- sapply(1:length(donor), function(s){
+			sample(donor[[s]], 1)
+		})
+	} else {
+		fit <- rpart(yobs~., data = cbind(yobs, xobs),
+			method = "class", control = rpart.control(
+			minbucket = minbucket, cp = cp), ...)
+		nodes <- predict(object = fit, newdata = xmis)
+		impute <- apply(nodes, MARGIN = 1, FUN = function(s){
+			sample(colnames(nodes), size = 1, prob = s)
+		})
+	}
+	return(impute)
+}
+
+#### OUR MICE RANDOM FOREST FUNCTIONS ####
+
+mice.impute.rfcont5 <- function(y, ry, x, ...){
+	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 5)
+}
+
+mice.impute.rfcont10 <- function(y, ry, x, ...){
+	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 10)
+}
+
+mice.impute.rfcont20 <- function(y, ry, x, ...){
+	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 20)
+}
+
+mice.impute.rfcont50 <- function(y, ry, x, ...){
+	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 50)
+}
+
+mice.impute.rfcont100 <- function(y, ry, x, ...){
+	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 100)
+}
+
+#### FUNCTIONS TO DO THE ANALYSIS ####
+
+coxfull <- function(data){
+	# Full data analysis
+	coefs <- summary(coxph(myformula, data = data))$coef
+	# return a vector of coefficients (est), upper and lower 95% limits
+	confint <- cbind(coefs[, 'coef'] - qnorm(0.975) * coefs[, 'se(coef)'],
+		coefs[, 'coef'] + qnorm(0.975) * coefs[, 'se(coef)'])
+	out <- cbind(coefs[, 'coef'], confint,
+		kLogHR >= confint[,1] & kLogHR <= confint[,2])
+	colnames(out) <- c('est', 'lo 95', 'hi 95', 'cover')
+	out
+}
+
+coximpute <- function(imputed_datasets){
+	# Analyses a list of imputed datasets
+	docoxmodel <- function(data){
+		coxph(myformula, data=data)
+	}
+	mirafits <- as.mira(lapply(imputed_datasets, docoxmodel))
+	out <- summary(pool(mirafits))
+	out <- cbind(out, kLogHR >= out[, 'lo 95'] & kLogHR <= out[, 'hi 95'])
+	# Whether this confidence interval contains the true hazard ratio
+	colnames(out)[length(colnames(out))] <- 'cover'
+	out
+}
+
+domissf <- function(missdata, reps = NIMPS){
+	# Imputation by missForest
+	out <- list()
+	for (i in 1:reps){
+		invisible(capture.output(
+			out[[i]] <- missForest(missdata)$ximp))
+	}
+	out
+}
+
+dorfimpute <- function(missdata, reps = NIMPS){
+	# Cumulative hazard is the outcome, filling in missing data
+	# using proximities, using a 300-tree Random Forest.
+	out <- list()
+	for (i in 1:reps){
+		invisible(capture.output(
+			out[[i]] <- rfImpute(cumhaz ~ ., missdata, iter = 10)))
+	}
+	out
+}
+
+domice <- function(missdata, functions, reps = NIMPS){
+	mids <- mice(missdata, defaultMethod = functions,
+		m = reps, visitSequence = 'monotone',
+		printFlag = FALSE, maxit = 10)
+	lapply(1:reps, function(x) complete(mids, x))
+}
+
+doanalysis <- function(x){
+	# Creates a dataset, analyses it using different methods, and outputs
+	# the result as a matrix of coefficients / SE and coverage 
+	data <- makeSurv(kSampleSize)
+	missdata <- makeMarSurv(data)
+	out <- list()
+	out$full <- coxfull(data)
+	out$rfimpute <- coximpute(dorfimpute(missdata))
+	out$missf <- coximpute(domissf(missdata))
+	out$rf5 <- coximpute(domice(missdata, 'rfcont5'))
+	out$rf10 <- coximpute(domice(missdata, 'rfcont10'))
+	out$rf20 <- coximpute(domice(missdata, 'rfcont20'))
+	out$rf50 <- coximpute(domice(missdata, 'rfcont50'))
+	out$rf100 <- coximpute(domice(missdata, 'rfcont100'))
+	out$rf <- coximpute(domice(missdata, 'rf'))
+	out$cart <- coximpute(domice(missdata, 'cart'))
+	out$mice <- coximpute(domice(missdata, 'norm'))
+	out
+}
+@
+
+
+<<echo=FALSE,fig=TRUE>>=
+mydata <- makeSurv(200)
+plot(mydata[, c('x1', 'x2', 'x3')],
+	main = "Associations between predictor variables in a sample dataset")
+mydata <- makeSurv(20000)
+@
+
+Linear regression model relating $x_3$ to $x_1$ and $x_2$:
+
+<<echo=TRUE>>=
+summary(lm(x3 ~ x1*x2, data = mydata))
+@
+
+<<echo=FALSE,fig=TRUE>>=
+mydata <- makeSurv(2000)
+mydata2 <- makeMarSurv(mydata)
+# Plot non-missing data
+plot(mydata$x1[!is.na(mydata2$x3)], mydata$x3[!is.na(mydata2$x3)],
+	pch = 19, xlab = 'x1', ylab = 'x3')
+# Plot missing data
+points(mydata$x1[is.na(mydata2$x3)], mydata$x3[is.na(mydata2$x3)],
+	col = 'red', pch = 19)
+legend('bottomright', legend = c('x3 observed', 'x3 missing'),
+	col = c('black', 'red'), pch = 19)
+title('Association of predictor variables x1 and x3')
+@
+
+All true log hazard ratios were assumed to be \Sexpr{kLogHR}, with hazard ratios = \Sexpr{format(exp(kLogHR), digits = 3)}. We checked that the hazard ratios in the simulated data were as expected for a large sample:
+
+<<echo=TRUE>>=
+# Cox proportional hazards analysis
+myformula <- as.formula(Surv(time, event) ~ x1 + x2 + x3)
+
+# Analysis with 10,000 simulated patients (or more
+# if the variable REFERENCE_SAMPLESIZE exists)
+if (!exists('REFERENCE_SAMPLESIZE')){
+	REFERENCE_SAMPLESIZE <- 10000
+}
+
+# Use parallel processing, if available, to create
+# datasets more quickly.
+if ('parallel' %in% loadedNamespaces() &
+	!is.null(getOption('mc.cores')) &
+	Sys.info()['sysname'] == 'Linux'){
+	REFERENCE_SAMPLESIZE <- REFERENCE_SAMPLESIZE %/%
+		getOption('mc.cores')
+	simdata <- mclapply(1:getOption('mc.cores'),
+		function(x) makeSurv(REFERENCE_SAMPLESIZE))
+	simdata <- do.call('rbind', simdata)
+} else {
+	simdata <- makeSurv(REFERENCE_SAMPLESIZE)
+}
+
+summary(coxph(myformula, data = simdata))
+@
+
+We created datasets containing \Sexpr{kSampleSize} simulated patients. For each dataset, we first analysed the complete dataset with no values missing, then artificially created missingness in variable $x_3$, imputed the missing values using various methods, and analysed the imputed datasets. We combined parameter estimates from multiply imputed datasets using Rubin's rules.
+
+\subsection{Missingness mechanism}
+
+Missingness was imposed in $x_3$ dependent on $x_1$, $x_2$, the event indicator and the marginal Nelson-Aalen cumulative hazard, using a logistic regression model. The linear predictors were offset by an amount chosen to make the overall proportion of each variable missing approximately \Sexpr{kPmiss}, i.e.:
+
+\begin{equation}
+P(\mathrm{miss})_i =
+\frac{\exp({lp}_i + \mathrm{offset})}{1 + \exp({lp}_i + \mathrm{offset})}
+\end{equation}
+
+\begin{equation}
+lp_i = 0.1x_{1i} + 0.1x_{2i} + 0.1 \times \mathrm{cumhaz}_i + 0.1 \times \mathrm{event}_i
+\end{equation}
+
+where `event' is the event indicator and `cumhaz' is the marginal Nelson-Aalen cumulative hazard.
+
+We analysed the datasets with missing data using different methods of multiple imputation. We calculated the marginal Nelson-Aalen cumulative hazard and included it in all imputation models, along with the event indicator and follow-up time.
+
+<<echo=TRUE>>=
+# Setting analysis parameters: To analyse more than 3 samples,
+# set N to the desired number before running this program
+if (!exists('N')){
+	N <- 3
+}
+# Number of imputations (set to at least 10 when
+# running an actual simulation)
+if (!exists('NIMPS')){
+	NIMPS <- 3
+}
+# Use parallel processing if the 'parallel' package is loaded
+if ('parallel' %in% loadedNamespaces() & Sys.info()['sysname'] == 'Linux'){
+	cat('Using parallel processing\n')
+	results <- mclapply(1:N, doanalysis)
+} else {
+	results <- lapply(1:N, doanalysis)
+}
+@
+
+We used the following methods of multiple imputation. The number of imputations was \Sexpr{NIMPS}. In each case, the imputation model for $x_3$ contained $x_1$, $x_2$, the event indicator and the marginal Nelson-Aalen cumulative hazard:
+
+\begin{description}
+\item [rfImpute] -- a single imputation method in the randomForest package, which uses the proximity matrix of a Random Forest to impute missing predictor variables. The marginal Nelson-Aalen cumulative hazard was considered as the `response' for the purpose of running this algorithm. It was run with 300 trees (default) and 10 iterations.
+\item [missForest] -- from the missForest package, which completes a dataset in an iterative way using Random Forest prediction. It was run with maximum 10 iterations (default) and 100 trees per forest (default).
+\item [CART MICE] -- Clasification and regression tree MICE method from the mice package (mice.impute.cart).
+\item [RF MICE (Doove)] -- Random Forest MICE method from Doove et al.\ \cite{doove}, which is available as function mice.impute.rf in the mice package.
+\item [RFcont MICE] -- Random Forest MICE method from the CALIBERrfimpute package with 5, 10, 20, 50 or 100 trees.
+\item [Parametric MICE] -- normal-based linear regression with default settings, in which the imputation model for $x_3$ is of the form:
+
+$$x_3 = \beta_0 + \beta_1.x_1 + \beta_2.x_2 + \beta_3.\mathrm{event} + \beta_4.\mathrm{cumhaz} + e$$
+
+where $e$ is the residual variance.
+\end{description}
+
+We analysed \Sexpr{N} samples. We calculated the following for each method and each parameter:
+
+\begin{itemize}
+\item Bias of log hazard ratio
+\item Standard error of bias (Monte Carlo error)
+\item Z-score for bias
+\item Standard deviation of estimated log hazard ratio
+\item Mean length of 95\% confidence intervals
+\item Coverage of 95\% confidence intervals
+	(proportion containing the true log hazard ratio)
+\end{itemize}
+
+<<echo=FALSE>>=
+getParams <- function(coef, method){
+	estimates <- sapply(results, function(x){
+		x[[method]][coef, 'est']
+	})
+	bias <- mean(estimates) - kLogHR
+	se_bias <- sd(estimates) / sqrt(length(estimates))
+	z <- bias / se_bias
+	ci_len <- mean(sapply(results, function(x){
+		x[[method]][coef, 'hi 95'] - x[[method]][coef, 'lo 95']
+	}))
+	ci_cov <- mean(sapply(results, function(x){
+		x[[method]][coef, 'cover']
+	}))
+	out <- c(bias, se_bias, z, sd(estimates), ci_len, ci_cov)
+	names(out) <- c('bias', 'se_bias', 'z_bias', 'sd', 'ci_len', 'ci_cov')
+	out
+}
+
+showTable <- function(coef){
+	methods <- c('full', 'rfimpute', 'missf', 'cart', 'rf',
+		'rf5', 'rf10', 'rf20', 'rf50', 'rf100', 'mice')
+	methodnames <- c('Full data', 'rfImpute', 'missForest',
+		'CART MICE', 'RF MICE (Doove)',
+		paste('RFcont MICE, ', c(5, 10, 20, 50, 100), 'trees'),
+		'Parametric MICE')
+	out <- t(sapply(methods, function(x){
+		getParams(coef, x)
+	}))
+	out <- formatC(out, digits = 3, format = 'fg')
+	out <- rbind(c('', 'Standard', 'Z-score ', 'SD of', 'Mean 95%', '95% CI'),
+		c('Bias', 'error of bias', 'for bias', 'estimate',
+		'CI length', 'coverage'), out)
+	out <- cbind(c('', '', methodnames), out)
+	print(xtable(out), floating = FALSE, include.rownames = FALSE,
+		include.colnames = FALSE, hline.after = c(0, 2, nrow(out)))
+}
+@
+
+\clearpage
+\section{Results}
+
+All the true log hazard ratios were set at \Sexpr{kLogHR}.
+The Z-score is defined as the mean bias divided by the empirical standard error of the estimates.
+
+\subsection{Fully observed variables}
+
+Log hazard ratio for the continuous fully observed variable $x_1$:
+
+\vspace{1em}
+
+<<echo=FALSE,results=tex>>=
+showTable('x1')
+@
+
+\vspace{1em}
+
+Log hazard ratio for the continuous fully observed variable $x_2$:
+
+\vspace{1em}
+
+<<echo=FALSE,results=tex>>=
+showTable('x2')
+@
+
+\clearpage
+\subsection{Partially observed variable}
+
+Log hazard ratio for the continuous partially observed variable $x_3$:
+
+\vspace{1em}
+
+<<echo=FALSE,results=tex>>=
+showTable('x3')
+@
+
+\vspace{1em}
+
+The following graph shows the bias for RFcont MICE methods by number of trees
+(bias estimated from \Sexpr{N} simulations; the lines denote 95\% confidence intervals):
+
+\vspace{1em}
+
+<<echo=FALSE,fig=TRUE>>=
+numtrees <- c(5, 10, 20, 50, 100)
+bias <- sapply(numtrees, function(x){
+	getParams('x3', paste('rf', x, sep=''))['bias']
+})
+se_bias <- sapply(numtrees, function(x){
+	getParams('x3', paste('rf', x, sep=''))['se_bias']
+})
+lower_bias <- bias - 1.96*se_bias
+upper_bias <- bias + 1.96*se_bias
+
+# Blank plot
+plot(-100, 0, type = 'p', pch = 15, cex = 1.3, ylab = 'Bias', 
+	xlab = 'Number of trees', xlim = c(0,100), ylim = c(min(lower_bias), max(upper_bias)))
+# Zero bias line
+lines(c(0,100), c(0,0), lty = 2, color = 'gray')
+# Confidence interval lines
+for (i in 1:5){lines(rep(numtrees[i], 2), c(lower_bias[i], upper_bias[i]))}
+# Points
+points(numtrees, bias, pch = 15, cex = 1.3)
+title('Bias in estimate of x3 coefficient after\nmultiple imputation using RFcont MICE')
+@
+
+\subsection{Pairwise comparisons between methods}
+
+<<echo=FALSE>>=
+# Comparing confidence interval coverage and bias between:
+#    RF MICE 100 trees
+#    RF MICE 10 trees
+#    Parametric MICE
+
+# Names of the variables in the comparison
+variables <- c('x1', 'x2', 'x3')
+
+pstar <- function(x){
+	if (x < 0.001){
+		'***'
+	} else if (x < 0.01){
+		'**'
+	} else if (x < 0.05){
+		'*'
+	} else {
+		''
+	}
+}
+
+compareBias <- function(method1, method2){
+	# Generates a table comparing bias
+	# Comparison statistic is the difference in absolute bias
+	# (negative means first method is better)
+	
+	compareBiasVar <- function(varname){
+		# All coefficients should be kLogHR
+		bias1 <- sapply(results, function(x){
+			x[[method1]][varname, 'est']
+		}) - kLogHR
+		bias2 <- sapply(results, function(x){
+			x[[method2]][varname, 'est']
+		}) - kLogHR
+
+		if (sign(mean(bias1)) == -1){
+			bias1 <- -bias1
+		}
+		if (sign(mean(bias2)) == -1){
+			bias2 <- -bias2
+		}
+		
+		paste(formatC(mean(bias1) - mean(bias2), format = 'fg', digits = 3),
+			pstar(t.test(bias1 - bias2)$p.value))
+	}
+	
+	sapply(variables, compareBiasVar)
+}
+
+compareVariance <- function(method1, method2){
+	# Generates a table comparing precision between two methods
+	# Comparison statistic is ratio of variance
+	# (smaller means first method is better)
+	
+	compareVarianceVar <- function(varname){
+		e1 <- sapply(results, function(x){
+			x[[method1]][varname, 'est']
+		})
+		e2 <- sapply(results, function(x){
+			x[[method2]][varname, 'est']
+		})
+		paste(formatC(var(e1) / var(e2), format = 'fg', digits = 3),
+			pstar(var.test(e1, e2)$p.value))
+	}
+	
+	sapply(variables, compareVarianceVar)
+}
+
+compareCIlength <- function(method1, method2){
+	# Generates a table comparing coverage percentage between two methods
+	# Comparison statistic is the ratio of confidence interval lengths
+	# (less than 1 = first better)
+	
+	compareCIlengthVar <- function(varname){
+		# Paired t test for bias (difference in estimate)
+		len1 <- sapply(results, function(x){
+			x[[method1]][varname, 'hi 95'] -
+				x[[method1]][varname, 'lo 95']
+		})
+		len2 <- sapply(results, function(x){
+			x[[method2]][varname, 'hi 95'] -
+				x[[method2]][varname, 'lo 95']
+		})
+		
+		paste(formatC(mean(len1) / mean(len2),
+			format = 'fg', digits = 4),
+			pstar(t.test(len1 - len2)$p.value))
+	}
+	
+	sapply(variables, compareCIlengthVar)	
+}
+
+compareCoverage <- function(method1, method2){
+	# Generates a table comparing coverage percentage between two methods
+	# Comparison statistic is the difference in coverage
+	# (positive = first better)
+
+	compareCoverageVar <- function(varname){
+		# Paired t test for bias (difference in estimate)
+		
+		cov1 <- sapply(results, function(x){
+			x[[method1]][varname, 'cover']
+		})
+		cov2 <- sapply(results, function(x){
+			x[[method2]][varname, 'cover']
+		})
+				
+		paste(formatC(100 * (mean(cov1) - mean(cov2)), format = 'f',
+			digits = 1),
+			pstar(binom.test(c(sum(cov1 == TRUE  & cov2 == FALSE),
+			sum(cov1 == FALSE & cov2 == TRUE)))$p.value))
+	}
+	
+	sapply(variables, compareCoverageVar)	
+}
+
+maketable <- function(comparison){
+	# comparison is a function such as compareCoverage, compareBias
+	compare <- cbind(comparison('rf10', 'mice'),
+		comparison('rf100', 'mice'),
+		comparison('rf10', 'rf100'))
+	compare <- cbind(rownames(compare), compare)
+	compare <- rbind(
+		c('', 'RFcont MICE 10 vs', 'RFcont MICE 100 vs',
+			'RFcont MICE 10 vs'),
+		c('Coefficient', 'parametric MICE',
+			'parametric MICE', 'RFcont MICE 100'),
+		compare)
+	print(xtable(compare), include.rownames = FALSE,
+		include.colnames = FALSE, floating = FALSE,
+		hline.after = c(0, 2, nrow(compare)))
+	
+	cat('\n\\vspace{1em}\n')
+	
+	compare <- cbind(comparison('rf10', 'rf'),
+		comparison('rf10', 'cart'),
+		comparison('rf', 'cart'))
+	compare <- cbind(rownames(compare), compare)
+	compare <- rbind(
+		c('', 'RFcont MICE 10 vs', 'RFcont MICE 10 vs',
+			'RF MICE (Doove) vs'),
+		c('Coefficient', 'RF MICE (Doove)',
+			'CART MICE', 'CART MICE'),
+		compare)
+	print(xtable(compare), include.rownames = FALSE,
+		include.colnames = FALSE, floating = FALSE,
+		hline.after = c(0, 2, nrow(compare)))
+}
+@
+
+\subsubsection{Comparison of bias}
+
+Difference between absolute bias (negative means that the first method is less biased). P values from paired sample t tests. Significance level: * P \textless 0.05, ** P \textless 0.01, *** P \textless 0.001.
+
+\vspace{1em}
+
+<<echo=FALSE,results=tex>>=
+maketable(compareBias)
+@
+
+\subsubsection{Comparison of precision}
+
+Ratio of variance of estimates (less than 1 means that the first method is more precise). P values from F test. Significance level: * P \textless 0.05, ** P \textless 0.01, *** P \textless 0.001.
+
+\vspace{1em}
+
+<<echo=FALSE,results=tex>>=
+maketable(compareVariance)
+@
+
+
+\subsubsection{Comparison of confidence interval length}
+
+Ratio of mean length of 95\% confidence intervals (less than 1 means that the first method produces smaller confidence intervals). P values from paired sample t test. Significance level: * P \textless 0.05, ** P \textless 0.01, *** P \textless 0.001.
+
+\vspace{1em}
+
+<<echo=FALSE,results=tex>>=
+maketable(compareCIlength)
+@
+
+\subsubsection{Comparison of confidence interval coverage}
+
+Difference between percentage coverage of 95\% confidence intervals (positive means that the first method has greater coverage). P values for pairwise comparisons by McNemar's test. Significance level: * P \textless 0.05, ** P \textless 0.01, *** P \textless 0.001.
+
+\vspace{1em}
+
+<<echo=FALSE,results=tex>>=
+maketable(compareCoverage)
+@
+
+\section{Discussion}
+
+In this simulation, parametric MICE using the default settings yielded a biased estimate for the coefficient for the partially observed variable $x_3$. This is because the interaction between $x_1$ and $x_2$ was not included in the imputation models. The estimate using the CART or Random Forest MICE methods were less biased, more precise and had shorter confidence intervals with greater coverage. Omissions of interactions between predictors can potentially result in bias using parametric MICE even if, as in this case, the interaction is not present in the substantive model. 
+
+\subsection{CART versus Random Forest MICE}
+
+CART MICE produced estimates for the $x_3$ coefficient that were less precise than the Random Forest MICE methods, and coverage of 95\% confidence intervals was only 93\%.
+
+\subsection{Comparison of Random Forest MICE methods}
+ 
+Coefficients estimated after impuTation using CART or Random Forest MICE methods were slightly biased. The bias was statistically significant but small in magnitude.
+Using RFcont MICE, the $x_3$ coefficient was biased towards the null with 5 or 10 trees and biased away from the null with 20 or more trees; bias was minimised using 10 or 20 trees. 
+
+Confidence intervals estimated using Doove's Random Forest MICE method were slightly shorter than those obtained using RFcont MICE but coverage was \textgreater 95\% with both methods.
+
+Computation time for Random Forest MICE methods was proportional to the number of trees; Doove's method with 100 trees took about 10 times as long as RFcont with 10 trees.
+
+\subsection{rfImpute and missForest}
+
+Parameters estimated after imputation using rfImpute and missForest were biased and the coverage of 95\% confidence intervals was less than 95\%. These methods are not suitable for multiple imputation. Failure to draw from the correct conditional distribution leads to bias and underestimation of the uncertainty when statistical models are fitted to imputed data. 
+
+\subsection{Implications for further research}
+
+This simulation demonstrates a situation in which Random Forest MICE methods have an advantage over parametric MICE. Both Doove's method (RF) and our method (RFcont) performed well, and on some performance measures Doove's method was superior. 
+
+It would be useful to compare these methods in simulations based on real datasets.
+
+\section{Appendix: R code}
+
+\subsection{R functions}
+
+This R code needs to be run in order to load the necessary functions before running the script (Section \ref{sec:script}).
+
+\subsubsection{Data generating functions}
+
+<<echo=FALSE>>=
+showfunction <- function(functionname){
+	cat(paste(functionname, '<-',
+		paste(capture.output(print(get(functionname))),
+		collapse = '\n')))
+	cat('\n')
+	invisible(NULL)
+}
+showfunction('makeSurv')
+showfunction('makeMarSurv')
+@
+
+\subsubsection{Functions to analyse data}
+
+<<echo=FALSE>>=
+showfunction('coxfull')
+showfunction('coximpute')
+showfunction('domissf')
+showfunction('dorfimpute')
+showfunction('mice.impute.cart')
+showfunction('mice.impute.rf')
+showfunction('mice.impute.rfcont5')
+showfunction('mice.impute.rfcont10')
+showfunction('mice.impute.rfcont20')
+showfunction('mice.impute.rfcont50')
+showfunction('mice.impute.rfcont100')
+showfunction('domice')
+showfunction('doanalysis')
+@
+
+\subsubsection{Functions to compare methods}
+
+<<echo=FALSE>>=
+showfunction('pstar')
+showfunction('compareBias')
+showfunction('compareVariance')
+showfunction('compareCIlength')
+showfunction('compareCoverage')
+@
+
+\subsubsection{Functions to compile and display results}
+
+<<echo=FALSE>>=
+showfunction('getParams')
+showfunction('showTable')
+showfunction('maketable')
+@
+
+\subsection{R script}
+\label{sec:script}
+Run this script after loading the functions above.
+
+\begin{Schunk}
+\begin{Sinput}
+# Install CALIBERrfimpute if necessary:
+# install.packages("CALIBERrfimpute", repos="http://R-Forge.R-project.org")
+library(CALIBERrfimpute)
+library(missForest)
+library(survival)
+library(xtable)
+library(parallel) # Use parallel processing on Unix
+
+# Initialise constants
+kPmiss <- 0.2 # probability of missingness
+kLogHR <- 0.5 # true log hazard ratio
+kSampleSize <- 2000 # number of patients in simulated datasets
+
+# Set number of samples
+N <- 1000
+
+# Perform the simulation
+results <- mclapply(1:N, doanalysis)
+
+# Show results
+showTable('x1'); showTable('x2'); showTable('x3')
+
+# Names of the variables in the comparison
+variables <- c('x1', 'x2', 'x3')
+
+# Show comparisons between methods
+maketable(compareBias)
+maketable(compareVariance)
+maketable(compareCIlength)
+maketable(compareCoverage)
+\end{Sinput}
+\end{Schunk}
+
+% Bibliography
+
+\begin{thebibliography}{1}
+
+\bibitem{shah} Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H. Comparison of Random Forest and Parametric Imputation Models for Imputing Missing Data Using MICE: A CALIBER Study. \textit{American Journal of Epidemiology} 2014. doi: \href{http://dx.doi.org/10.1093/aje/kwt312}{10.1093/aje/kwt312}
+
+\bibitem{doove} Doove LL, van Buuren S, Dusseldorp E. Recursive partitioning for missing data imputation in the presence of interaction effects. \textit{Computational Statistics and Data Analysis} 2014;72:92--104. doi: \href{http://dx.doi.org/10.1016/j.csda.2013.10.025}{10.1016/j.csda.2013.10.025}
+
+\end{thebibliography}
+
+\end{document}

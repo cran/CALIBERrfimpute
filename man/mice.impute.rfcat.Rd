@@ -7,12 +7,14 @@ Impute categorical variables using Random Forest within MICE
 
 \description{
 This method can be used to impute categorical variables  (binary or >2 levels) in MICE by specifying
-method = 'rfcat'.
+method = 'rfcat'. It was developed independently from the
+\code{\link[mice]{mice.impute.rf}} algorithm of Doove et al.,
+and differs from it in some respects.
 }
 
 \usage{
 mice.impute.rfcat(y, ry, x, ntree_cat = NULL,
-    nodesize_cat = NULL, maxnodes_cat = NULL, ...)
+    nodesize_cat = NULL, maxnodes_cat = NULL, ntree = NULL, ...)
 }
 
 \arguments{
@@ -26,7 +28,7 @@ a logical vector stating whether y is observed or not.
 a matrix of predictors to impute y.
 }
   \item{ntree_cat}{
-number of trees, default = 10. A global option can be set by calling setRFoptions(ntree_cat=XX).
+number of trees, default = 10. A global option can be set by calling e.g. \code{setRFoptions(ntree_cat=10)}.
 }
   \item{nodesize_cat}{
 minimum size of nodes, default = 1.
@@ -35,6 +37,9 @@ Smaller values of nodesize create finer, more precise trees but makes the progra
 }
   \item{maxnodes_cat}{
 maximum number of nodes, default NULL. If NULL the number of nodes is determined by number of observations and nodesize_cat.
+}
+  \item{ntree}{
+an alternative argument for specifying the number of trees, over-ridden by \code{ntree_cat}. This is for consistency with the \code{mice.impute.rf} function.
 }
   \item{\dots}{
 other arguments to pass to randomForest.
@@ -54,7 +59,7 @@ A vector of imputed values of y.
 }
 
 \references{
-[reference to submitted Am J Epid paper]
+Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H. Comparison of Random Forest and parametric imputation models for imputing missing data using MICE: a CALIBER study. American Journal of Epidemiology 2014. doi: \href{http://dx.doi.org/10.1093/aje/kwt312}{10.1093/aje/kwt312}
 }
 
 \author{
@@ -68,11 +73,14 @@ hazard ratios compared to polytomous regression, but coverage of confidence inte
 correct.
 }
 
-
 \seealso{
-\code{\link{setRFoptions}}, \code{\link{mice.impute.rfcont}}
+\code{\link{setRFoptions}},
+\code{\link{mice.impute.rfcont}},
+\code{\link[mice]{mice}},
+\code{\link[mice]{mice.impute.rf}},
+\code{\link[mice]{mice.impute.cart}},
+\code{\link[randomForest]{randomForest}}
 }
-
 
 \examples{
 set.seed(1)

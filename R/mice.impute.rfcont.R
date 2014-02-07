@@ -1,12 +1,18 @@
 mice.impute.rfcont <- function(y, ry, x,
 	ntree_cont = NULL, nodesize_cont = NULL, 
-	maxnodes_cont = NULL, ...){
+	maxnodes_cont = NULL, ntree = NULL, ...){
 	# y is the vector of y (observed and unobserved)
 	# ry is a vector of indicators as to whether y is observed
 	# x is the matrix of predictors
 	x <- as.matrix(x)
 	bootsample <- sample(sum(ry), replace = TRUE)
 	
+	# Use ntree to pass the number of trees (consistent with
+	# mice.impute.rf in the mice package)
+	if (is.null(ntree_cont) & !is.null(ntree)){
+		ntree_cont <- ntree
+	}
+
 	if (is.null(ntree_cont)){
 		if (is.null(getOption('CALIBERrfimpute_ntree_cont'))){
 			ntree_cont <- 10

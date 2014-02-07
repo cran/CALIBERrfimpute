@@ -1,12 +1,32 @@
 =====================================
-Version 0.1-2
-planned release to CRAN
+Version 0.1-4
+second release on CRAN
 =====================================
 
 CHANGES:
 
-- A new option: maxnodes (maximum number of
-  nodes in regresion tree)
+- A new argument ntree, to correspond to the ntree
+  argument in mice.impute.rf
+
+=====================================
+Version 0.1-3
+=====================================
+
+CHANGES:
+
+- Added information and links for the mice.impute.rf
+  and mice.impute.cart methods in mice version 2.20
+- Added reference to published paper
+
+=====================================
+Version 0.1-2
+first release to CRAN
+=====================================
+
+CHANGES:
+
+- A new option: maxnodes (maximum number of nodes in
+  regresion tree)
 
 =====================================
 Version 0.1-1

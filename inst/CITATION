@@ -8,7 +8,6 @@ citEntry(entry="Manual",
         author = personList(as.person("Anoop Shah")),
         year = year,
         note = vers,
-
         textVersion =
         paste("Anoop Shah (",
               year,

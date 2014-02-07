@@ -7,12 +7,14 @@ Impute continuous variables using Random Forest within MICE
 
 \description{
 This method can be used to impute continuous variables in MICE by specifying
-method = 'rfcont'.
+method = 'rfcont'. It was developed independently from the
+\code{\link[mice]{mice.impute.rf}} algorithm of Doove et al.,
+and differs from it in drawing imputed values from a normal distribution.
 }
 
 \usage{
 mice.impute.rfcont(y, ry, x, ntree_cont = NULL,
-    nodesize_cont = NULL, maxnodes_cont = NULL, ...)
+    nodesize_cont = NULL, maxnodes_cont = NULL, ntree = NULL, ...)
 }
 
 \arguments{
@@ -26,7 +28,7 @@ a logical vector stating whether y is observed or not.
 a matrix of predictors to impute y.
 }
   \item{ntree_cont}{
-number of trees, default = 10. A global option can be set by calling setRFoptions(ntree_cont=XX).
+number of trees, default = 10. A global option can be set by calling e.g. \code{setRFoptions(ntree_cont=10)}.
 }
   \item{nodesize_cont}{
 minimum size of nodes, default = 5.
@@ -35,6 +37,9 @@ Smaller values of nodesize create finer, more precise trees but makes the progra
 }
   \item{maxnodes_cont}{
 maximum number of nodes, default NULL. If NULL the number of nodes is determined by number of observations and nodesize_cont.
+}
+  \item{ntree}{
+an alternative argument for specifying the number of trees, over-ridden by \code{ntree_cont}. This is for consistency with the \code{mice.impute.rf} function.
 }
   \item{\dots}{
 other arguments to pass to randomForest.
@@ -46,8 +51,9 @@ This Random Forest imputation algorithm has been developed as an alternative to 
 linear regression, and can accommodate non-linear relations and interactions among the
 predictor variables without requiring them to be specified in the model. The algorithm takes
 a bootstrap sample of the data to simulate sampling variability, fits a regression forest
-trees, calcualtes the out-of-bag mean squared error, and imputes each value as a random draw
-from a normal distribution defined
+trees and calculates the out-of-bag mean squared error. Each value is imputed as a random draw
+from a normal distribution with mean defined by the Random Forest prediction and variance equal
+to the out-of-bag mean squared error.
 
 If only one tree is used (not recommended), a bootstrap sample is not taken in the first stage
 because the Random Forest algorithm performs an internal bootstrap sample before fitting the tree.
@@ -58,7 +64,7 @@ A vector of imputed values of y.
 }
 
 \references{
-[reference to submitted Am J Epid paper]
+Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H. Comparison of Random Forest and parametric imputation models for imputing missing data using MICE: a CALIBER study. American Journal of Epidemiology 2014. doi: \href{http://dx.doi.org/10.1093/aje/kwt312}{10.1093/aje/kwt312}
 }
 
 \author{
@@ -72,11 +78,15 @@ On the simulated data there was slight bias if the distribution of missing value
 very different from observed values, because imputed values were closer to the centre of
 the data than the missing values. However in the survival analysis the hazard ratios
 were unbiased and coverage of confidence intervals more conservative than normal-based MICE,
-but the mean length of confidence intervals was shorter with randomForest.
+but the mean length of confidence intervals was shorter with mice.impute.rfcont.
 }
 
 \seealso{
-\code{\link{setRFoptions}}, \code{\link{mice.impute.rfcat}}
+\code{\link{setRFoptions}}, \code{\link{mice.impute.rfcat}},
+\code{\link[mice]{mice}},
+\code{\link[mice]{mice.impute.rf}},
+\code{\link[mice]{mice.impute.cart}},
+\code{\link[randomForest]{randomForest}}
 }
 
 
