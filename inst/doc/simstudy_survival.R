@@ -30,7 +30,7 @@ if (!exists('NPATS')){
 
 
 ###################################################
-### code chunk number 2: simstudy_survival.Rnw:81-313
+### code chunk number 2: simstudy_survival.Rnw:79-308
 ###################################################
 
 #### DATA GENERATING FUNCTIONS ####
@@ -55,7 +55,9 @@ makeSurv <- function(n = 2000, loghr = kLogHR){
 		max = quantile(data$survtime, 0.5))
 	data$event <- as.integer(data$survtime <= obstime)
 	data$time <- pmin(data$survtime, obstime)
-	data$cumhaz <- nelsonaalen(data, time, event)
+	
+	# Observed marginal cumulative hazard for imputation models
+	data$cumhaz <- nelsonaalen(data, time, event) 
 	
 	# True log hazard and survival time are not seen in the data
 	# so remove them
@@ -95,10 +97,9 @@ makeMarSurv <- function(data, pmissing = kPmiss){
 		# Generate predictions from binomial distribution
 		as.logical(rbinom(logical(length(lp)), 1, logistic(lptrial)))
 	}
-
 	data$x3[predictions(0.1 * data$x1 + 0.1 * data$x2 +
 		0.1 * data$cumhaz + 0.1 * data$event, nrow(data) * pmissing)] <- NA
-	return(data)	
+	return(data)
 }
 
 #### IMPUTATION FUNCTIONS FROM DOOVE AND VAN BUUREN ####
@@ -108,8 +109,8 @@ mice.impute.rf <- function(y, ry, x, ntrees = 100,
 	# Use default mtry, i.e. one third the number of predictors for
 	# categorical variables, square root of the number of predictors
 	# for continuous dependent variables
-	xobs <- x[ry,]
-	xmis <- x[!ry,]
+	xobs <- as.matrix(x[ry,])
+	xmis <- as.matrix(x[!ry,])
 	yobs <- y[ry]
 	# Function to create a single tree
 	onetree <- function(xobs, xmis, yobs){
@@ -143,8 +144,8 @@ mice.impute.rf <- function(y, ry, x, ntrees = 100,
 
 mice.impute.cart <- function(y, ry, x, minbucket = 5, cp = 1e-04,
 	...){
-	xobs <- x[ry,]
-	xmis <- x[!ry,]
+	xobs <- as.matrix(x[ry,])
+	xmis <- as.matrix(x[!ry,])
 	yobs <- y[ry]
 	if (is.factor(yobs)==F){
 		fit <- rpart(yobs~., data = cbind(yobs,xobs), method = "anova",
@@ -166,6 +167,14 @@ mice.impute.cart <- function(y, ry, x, minbucket = 5, cp = 1e-04,
 		})
 	}
 	return(impute)
+}
+
+mice.impute.rfdoove10 <- function(y, ry, x, ...){
+	mice.impute.rfcont(y = y, ry = ry, x = x, ntrees = 10)
+}
+
+mice.impute.rfdoove100 <- function(y, ry, x, ...){
+	mice.impute.rf(y = y, ry = ry, x = x, ntrees = 100)
 }
 
 #### OUR MICE RANDOM FOREST FUNCTIONS ####
@@ -227,17 +236,6 @@ domissf <- function(missdata, reps = NIMPS){
 	out
 }
 
-dorfimpute <- function(missdata, reps = NIMPS){
-	# Cumulative hazard is the outcome, filling in missing data
-	# using proximities, using a 300-tree Random Forest.
-	out <- list()
-	for (i in 1:reps){
-		invisible(capture.output(
-			out[[i]] <- rfImpute(cumhaz ~ ., missdata, iter = 10)))
-	}
-	out
-}
-
 domice <- function(missdata, functions, reps = NIMPS){
 	mids <- mice(missdata, defaultMethod = functions,
 		m = reps, visitSequence = 'monotone',
@@ -252,14 +250,13 @@ doanalysis <- function(x){
 	missdata <- makeMarSurv(data)
 	out <- list()
 	out$full <- coxfull(data)
-	out$rfimpute <- coximpute(dorfimpute(missdata))
 	out$missf <- coximpute(domissf(missdata))
 	out$rf5 <- coximpute(domice(missdata, 'rfcont5'))
 	out$rf10 <- coximpute(domice(missdata, 'rfcont10'))
 	out$rf20 <- coximpute(domice(missdata, 'rfcont20'))
-	out$rf50 <- coximpute(domice(missdata, 'rfcont50'))
 	out$rf100 <- coximpute(domice(missdata, 'rfcont100'))
-	out$rf <- coximpute(domice(missdata, 'rf'))
+	out$rfdoove10 <- coximpute(domice(missdata, 'rfdoove10'))
+	out$rfdoove100 <- coximpute(domice(missdata, 'rfdoove100'))
 	out$cart <- coximpute(domice(missdata, 'cart'))
 	out$mice <- coximpute(domice(missdata, 'norm'))
 	out
@@ -267,7 +264,7 @@ doanalysis <- function(x){
 
 
 ###################################################
-### code chunk number 3: simstudy_survival.Rnw:317-321
+### code chunk number 3: simstudy_survival.Rnw:312-316
 ###################################################
 mydata <- makeSurv(200)
 plot(mydata[, c('x1', 'x2', 'x3')],
@@ -276,13 +273,13 @@ mydata <- makeSurv(20000)
 
 
 ###################################################
-### code chunk number 4: simstudy_survival.Rnw:326-327
+### code chunk number 4: simstudy_survival.Rnw:321-322
 ###################################################
 summary(lm(x3 ~ x1*x2, data = mydata))
 
 
 ###################################################
-### code chunk number 5: simstudy_survival.Rnw:330-341
+### code chunk number 5: simstudy_survival.Rnw:325-336
 ###################################################
 mydata <- makeSurv(2000)
 mydata2 <- makeMarSurv(mydata)
@@ -298,7 +295,7 @@ title('Association of predictor variables x1 and x3')
 
 
 ###################################################
-### code chunk number 6: simstudy_survival.Rnw:346-370
+### code chunk number 6: simstudy_survival.Rnw:341-365
 ###################################################
 # Cox proportional hazards analysis
 myformula <- as.formula(Surv(time, event) ~ x1 + x2 + x3)
@@ -311,12 +308,12 @@ if (!exists('REFERENCE_SAMPLESIZE')){
 
 # Use parallel processing, if available, to create
 # datasets more quickly.
-if ('parallel' %in% loadedNamespaces() &
-	!is.null(getOption('mc.cores')) &
-	Sys.info()['sysname'] == 'Linux'){
+if ('parallel' %in% loadedNamespaces() &&
+	!is.null(getOption('mc.cores')) &&
+	.Platform$OS.type == 'unix'){
 	REFERENCE_SAMPLESIZE <- REFERENCE_SAMPLESIZE %/%
 		getOption('mc.cores')
-	simdata <- mclapply(1:getOption('mc.cores'),
+	simdata <- parallel::mclapply(1:getOption('mc.cores'),
 		function(x) makeSurv(REFERENCE_SAMPLESIZE))
 	simdata <- do.call('rbind', simdata)
 } else {
@@ -327,7 +324,7 @@ summary(coxph(myformula, data = simdata))
 
 
 ###################################################
-### code chunk number 7: simstudy_survival.Rnw:392-409
+### code chunk number 7: simstudy_survival.Rnw:387-405
 ###################################################
 # Setting analysis parameters: To analyse more than 3 samples,
 # set N to the desired number before running this program
@@ -340,16 +337,17 @@ if (!exists('NIMPS')){
 	NIMPS <- 3
 }
 # Use parallel processing if the 'parallel' package is loaded
-if ('parallel' %in% loadedNamespaces() & Sys.info()['sysname'] == 'Linux'){
+if ('parallel' %in% loadedNamespaces() &&
+	.Platform$OS.type == 'unix'){
 	cat('Using parallel processing\n')
-	results <- mclapply(1:N, doanalysis)
+	results <- parallel::mclapply(1:N, doanalysis)
 } else {
 	results <- lapply(1:N, doanalysis)
 }
 
 
 ###################################################
-### code chunk number 8: simstudy_survival.Rnw:439-475
+### code chunk number 8: simstudy_survival.Rnw:434-470
 ###################################################
 getParams <- function(coef, method){
 	estimates <- sapply(results, function(x){
@@ -357,31 +355,31 @@ getParams <- function(coef, method){
 	})
 	bias <- mean(estimates) - kLogHR
 	se_bias <- sd(estimates) / sqrt(length(estimates))
-	z <- bias / se_bias
+	mse <- mean((estimates - kLogHR) ^ 2)
 	ci_len <- mean(sapply(results, function(x){
 		x[[method]][coef, 'hi 95'] - x[[method]][coef, 'lo 95']
 	}))
 	ci_cov <- mean(sapply(results, function(x){
 		x[[method]][coef, 'cover']
 	}))
-	out <- c(bias, se_bias, z, sd(estimates), ci_len, ci_cov)
-	names(out) <- c('bias', 'se_bias', 'z_bias', 'sd', 'ci_len', 'ci_cov')
+	out <- c(bias, se_bias, mse, sd(estimates), ci_len, ci_cov)
+	names(out) <- c('bias', 'se_bias', 'mse', 'sd', 'ci_len', 'ci_cov')
 	out
 }
 
 showTable <- function(coef){
-	methods <- c('full', 'rfimpute', 'missf', 'cart', 'rf',
-		'rf5', 'rf10', 'rf20', 'rf50', 'rf100', 'mice')
-	methodnames <- c('Full data', 'rfImpute', 'missForest',
-		'CART MICE', 'RF MICE (Doove)',
-		paste('RFcont MICE, ', c(5, 10, 20, 50, 100), 'trees'),
+	methods <- c('full', 'missf', 'cart', 'rfdoove10',
+		'rfdoove100', 'rf5', 'rf10', 'rf20', 'rf100', 'mice')
+	methodnames <- c('Full data', 'missForest', 'CART MICE',
+		'RF Doove MICE 10', 'RF Doove MICE 100',
+		paste('RFcont MICE', c(5, 10, 20, 100)),
 		'Parametric MICE')
 	out <- t(sapply(methods, function(x){
 		getParams(coef, x)
 	}))
 	out <- formatC(out, digits = 3, format = 'fg')
-	out <- rbind(c('', 'Standard', 'Z-score ', 'SD of', 'Mean 95%', '95% CI'),
-		c('Bias', 'error of bias', 'for bias', 'estimate',
+	out <- rbind(c('', 'Standard', 'Mean', 'SD of', 'Mean 95%',
+		'95% CI'), c('Bias', 'error of bias', 'square error', 'estimate',
 		'CI length', 'coverage'), out)
 	out <- cbind(c('', '', methodnames), out)
 	print(xtable(out), floating = FALSE, include.rownames = FALSE,
@@ -390,27 +388,27 @@ showTable <- function(coef){
 
 
 ###################################################
-### code chunk number 9: simstudy_survival.Rnw:490-491
+### code chunk number 9: simstudy_survival.Rnw:483-484
 ###################################################
 showTable('x1')
 
 
 ###################################################
-### code chunk number 10: simstudy_survival.Rnw:500-501
+### code chunk number 10: simstudy_survival.Rnw:493-494
 ###################################################
 showTable('x2')
 
 
 ###################################################
-### code chunk number 11: simstudy_survival.Rnw:511-512
+### code chunk number 11: simstudy_survival.Rnw:504-505
 ###################################################
 showTable('x3')
 
 
 ###################################################
-### code chunk number 12: simstudy_survival.Rnw:522-542
+### code chunk number 12: simstudy_survival.Rnw:515-537
 ###################################################
-numtrees <- c(5, 10, 20, 50, 100)
+numtrees <- c(5, 10, 20, 100)
 bias <- sapply(numtrees, function(x){
 	getParams('x3', paste('rf', x, sep=''))['bias']
 })
@@ -422,18 +420,20 @@ upper_bias <- bias + 1.96*se_bias
 
 # Blank plot
 plot(-100, 0, type = 'p', pch = 15, cex = 1.3, ylab = 'Bias', 
-	xlab = 'Number of trees', xlim = c(0,100), ylim = c(min(lower_bias), max(upper_bias)))
+	xlab = 'Number of trees', xlim = c(0,100),
+	ylim = c(min(lower_bias), max(upper_bias)))
 # Zero bias line
 lines(c(0,100), c(0,0), lty = 2, color = 'gray')
 # Confidence interval lines
-for (i in 1:5){lines(rep(numtrees[i], 2), c(lower_bias[i], upper_bias[i]))}
+for (i in 1:5){lines(rep(numtrees[i], 2),
+	c(lower_bias[i], upper_bias[i]))}
 # Points
 points(numtrees, bias, pch = 15, cex = 1.3)
 title('Bias in estimate of x3 coefficient after\nmultiple imputation using RFcont MICE')
 
 
 ###################################################
-### code chunk number 13: simstudy_survival.Rnw:547-694
+### code chunk number 13: simstudy_survival.Rnw:542-689
 ###################################################
 # Comparing confidence interval coverage and bias between:
 #    RF MICE 100 trees
@@ -568,15 +568,15 @@ maketable <- function(comparison){
 	
 	cat('\n\\vspace{1em}\n')
 	
-	compare <- cbind(comparison('rf10', 'rf'),
-		comparison('rf10', 'cart'),
-		comparison('rf', 'cart'))
+	compare <- cbind(comparison('rfdoove10', 'rf10'),
+		comparison('rfdoove10', 'cart'),
+		comparison('rfdoove10', 'rfdoove100'))
 	compare <- cbind(rownames(compare), compare)
 	compare <- rbind(
-		c('', 'RFcont MICE 10 vs', 'RFcont MICE 10 vs',
-			'RF MICE (Doove) vs'),
-		c('Coefficient', 'RF MICE (Doove)',
-			'CART MICE', 'CART MICE'),
+		c('', 'RF Doove MICE 10 vs', 'RF Doove MICE 10 vs',
+			'RF Doove MICE 10 vs'),
+		c('Coefficient', 'RFcont MICE 10',
+			'CART MICE', 'RF Doove MICE 100'),
 		compare)
 	print(xtable(compare), include.rownames = FALSE,
 		include.colnames = FALSE, floating = FALSE,
@@ -585,31 +585,31 @@ maketable <- function(comparison){
 
 
 ###################################################
-### code chunk number 14: simstudy_survival.Rnw:703-704
+### code chunk number 14: simstudy_survival.Rnw:698-699
 ###################################################
 maketable(compareBias)
 
 
 ###################################################
-### code chunk number 15: simstudy_survival.Rnw:713-714
+### code chunk number 15: simstudy_survival.Rnw:708-709
 ###################################################
 maketable(compareVariance)
 
 
 ###################################################
-### code chunk number 16: simstudy_survival.Rnw:724-725
+### code chunk number 16: simstudy_survival.Rnw:719-720
 ###################################################
 maketable(compareCIlength)
 
 
 ###################################################
-### code chunk number 17: simstudy_survival.Rnw:734-735
+### code chunk number 17: simstudy_survival.Rnw:729-730
 ###################################################
 maketable(compareCoverage)
 
 
 ###################################################
-### code chunk number 18: simstudy_survival.Rnw:773-782
+### code chunk number 18: simstudy_survival.Rnw:768-777
 ###################################################
 showfunction <- function(functionname){
 	cat(paste(functionname, '<-',
@@ -623,25 +623,24 @@ showfunction('makeMarSurv')
 
 
 ###################################################
-### code chunk number 19: simstudy_survival.Rnw:787-800
+### code chunk number 19: simstudy_survival.Rnw:782-794
 ###################################################
 showfunction('coxfull')
 showfunction('coximpute')
 showfunction('domissf')
-showfunction('dorfimpute')
 showfunction('mice.impute.cart')
-showfunction('mice.impute.rf')
+showfunction('mice.impute.rfdoove10')
+showfunction('mice.impute.rfdoove100')
 showfunction('mice.impute.rfcont5')
 showfunction('mice.impute.rfcont10')
 showfunction('mice.impute.rfcont20')
-showfunction('mice.impute.rfcont50')
 showfunction('mice.impute.rfcont100')
 showfunction('domice')
 showfunction('doanalysis')
 
 
 ###################################################
-### code chunk number 20: simstudy_survival.Rnw:805-810
+### code chunk number 20: simstudy_survival.Rnw:799-804
 ###################################################
 showfunction('pstar')
 showfunction('compareBias')
@@ -651,7 +650,7 @@ showfunction('compareCoverage')
 
 
 ###################################################
-### code chunk number 21: simstudy_survival.Rnw:815-818
+### code chunk number 21: simstudy_survival.Rnw:809-812
 ###################################################
 showfunction('getParams')
 showfunction('showTable')

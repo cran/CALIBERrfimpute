@@ -1,4 +1,25 @@
 =====================================
+Version 0.1-5
+third release onto CRAN
+=====================================
+
+CHANGES:
+
+- Update vignette to investigate RF Doove
+  with different numbers of trees. Remove
+  rfImpute from vignette, as it is not
+  suitable for survival data
+
+BUG FIXES:
+
+- Corrections to vignette so that it works
+  on multiple platforms
+- Ensure that rfcont works with a single column
+  predictor - randomForest requires the predictor
+  to be a matrix even if one column (thanks to
+  Jonathan Bartlett for finding this bug)
+
+=====================================
 Version 0.1-4
 second release on CRAN
 =====================================

@@ -1,19 +1,25 @@
 Package: CALIBERrfimpute
 Type: Package
 Title: Multiple imputation using MICE and Random Forest
-Version: 0.1-4
-Date: 2014-02-07
-Author: Anoop Shah
-Maintainer: Anoop Shah <anoop@doctors.org.uk>
+Version: 0.1-5
+Date: 2014-03-13
+Authors@R: c(person("Anoop", "Shah", role=c("aut", "cre"), email="anoop@doctors.org.uk"),
+   person("Jonathan", "Bartlett", role="ctb"),
+   person("Harry",  "Hemingway", role="ths"),
+   person("Owen", "Nicholas", role="ths"),
+   person("Aroon", "Hingorani", role="ths"))
 Description: Functions to impute using Random Forest under Full Conditional Specifications (Multivariate Imputation by Chained Equations). The CALIBER programme is funded by the Wellcome Trust (086091/Z/08/Z) and the National Institute for Health Research (NIHR) under its Programme Grants for Applied Research programme (RP-PG-0407-10314). The author is supported by a Wellcome Trust Clinical Research Training Fellowship (0938/30/Z/10/Z).
 License: GPL-3
 Depends: mice (>= 2.20)
 Imports: mvtnorm, randomForest
 Suggests: missForest, rpart, survival, xtable
-Repository: CRAN
-Repository/R-Forge/Project: caliberanalysis
-Repository/R-Forge/Revision: 38
-Repository/R-Forge/DateTimeStamp: 2014-02-11 15:13:03
-Date/Publication: 2014-02-13 14:29:11
-Packaged: 2014-02-11 19:18:39 UTC; rforge
+Packaged: 2014-03-24 07:05:32 UTC; ripley
+Author: Anoop Shah [aut, cre],
+  Jonathan Bartlett [ctb],
+  Harry Hemingway [ths],
+  Owen Nicholas [ths],
+  Aroon Hingorani [ths]
+Maintainer: Anoop Shah <anoop@doctors.org.uk>
 NeedsCompilation: no
+Repository: CRAN
+Date/Publication: 2014-03-24 08:07:52

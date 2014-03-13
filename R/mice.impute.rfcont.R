@@ -44,7 +44,7 @@ mice.impute.rfcont <- function(y, ry, x,
 		yobs <- y[ry]
 		xobs <- as.matrix(x[ry, ])
 	}
-	xmiss <- x[!ry, ]
+	xmiss <- as.matrix(x[!ry, ])
 	# Build a random forest
 	rf <- randomForest(xobs, yobs, ntree = ntree_cont,
 		nodesize = nodesize_cont, maxnodes = maxnodes_cont, ...)

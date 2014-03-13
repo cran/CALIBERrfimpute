@@ -28,12 +28,15 @@ a logical vector stating whether y is observed or not.
 a matrix of predictors to impute y.
 }
   \item{ntree_cat}{
-number of trees, default = 10. A global option can be set by calling e.g. \code{setRFoptions(ntree_cat=10)}.
+number of trees, default = 10.
+
+A global option can be set thus: \code{setRFoptions(ntree_cat=10)}.
 }
   \item{nodesize_cat}{
 minimum size of nodes, default = 1.
-A global option can be set by calling setRFoptions(nodesize_cat=XX).
-Smaller values of nodesize create finer, more precise trees but makes the program slower.
+
+A global option can be set thus: \code{setRFoptions(nodesize_cat=1)}.
+Smaller values of nodesize create finer, more precise trees but increase the computation time.
 }
   \item{maxnodes_cat}{
 maximum number of nodes, default NULL. If NULL the number of nodes is determined by number of observations and nodesize_cat.
@@ -89,6 +92,10 @@ mymardata <- makemar(mydata)
 
 cat('\nNumber of missing values:\n')
 print(sapply(mymardata, function(x){sum(is.na(x))}))
+
+# Test imputation of a single column in a two-column dataset
+cat('\nTest imputation of a simple dataset')
+print(mice(mymardata[, c('y', 'x2')], method = 'rfcat'))
 
 # Analyse data
 cat('\nFull data analysis:\n')

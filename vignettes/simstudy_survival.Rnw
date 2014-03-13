@@ -40,8 +40,6 @@ if (!exists('NPATS')){
 
 \author{Anoop D. Shah, Jonathan W. Bartlett, James Carpenter, \\ Owen Nicholas and Harry Hemingway}
 
-\usepackage{mathptmx}
-\usepackage{helvet}
 \usepackage{hyperref}
 
 \begin{document}
@@ -102,7 +100,9 @@ makeSurv <- function(n = 2000, loghr = kLogHR){
 		max = quantile(data$survtime, 0.5))
 	data$event <- as.integer(data$survtime <= obstime)
 	data$time <- pmin(data$survtime, obstime)
-	data$cumhaz <- nelsonaalen(data, time, event)
+	
+	# Observed marginal cumulative hazard for imputation models
+	data$cumhaz <- nelsonaalen(data, time, event) 
 	
 	# True log hazard and survival time are not seen in the data
 	# so remove them
@@ -142,10 +142,9 @@ makeMarSurv <- function(data, pmissing = kPmiss){
 		# Generate predictions from binomial distribution
 		as.logical(rbinom(logical(length(lp)), 1, logistic(lptrial)))
 	}
-
 	data$x3[predictions(0.1 * data$x1 + 0.1 * data$x2 +
 		0.1 * data$cumhaz + 0.1 * data$event, nrow(data) * pmissing)] <- NA
-	return(data)	
+	return(data)
 }
 
 #### IMPUTATION FUNCTIONS FROM DOOVE AND VAN BUUREN ####
@@ -155,8 +154,8 @@ mice.impute.rf <- function(y, ry, x, ntrees = 100,
 	# Use default mtry, i.e. one third the number of predictors for
 	# categorical variables, square root of the number of predictors
 	# for continuous dependent variables
-	xobs <- x[ry,]
-	xmis <- x[!ry,]
+	xobs <- as.matrix(x[ry,])
+	xmis <- as.matrix(x[!ry,])
 	yobs <- y[ry]
 	# Function to create a single tree
 	onetree <- function(xobs, xmis, yobs){
@@ -190,8 +189,8 @@ mice.impute.rf <- function(y, ry, x, ntrees = 100,
 
 mice.impute.cart <- function(y, ry, x, minbucket = 5, cp = 1e-04,
 	...){
-	xobs <- x[ry,]
-	xmis <- x[!ry,]
+	xobs <- as.matrix(x[ry,])
+	xmis <- as.matrix(x[!ry,])
 	yobs <- y[ry]
 	if (is.factor(yobs)==F){
 		fit <- rpart(yobs~., data = cbind(yobs,xobs), method = "anova",
@@ -213,6 +212,14 @@ mice.impute.cart <- function(y, ry, x, minbucket = 5, cp = 1e-04,
 		})
 	}
 	return(impute)
+}
+
+mice.impute.rfdoove10 <- function(y, ry, x, ...){
+	mice.impute.rfcont(y = y, ry = ry, x = x, ntrees = 10)
+}
+
+mice.impute.rfdoove100 <- function(y, ry, x, ...){
+	mice.impute.rf(y = y, ry = ry, x = x, ntrees = 100)
 }
 
 #### OUR MICE RANDOM FOREST FUNCTIONS ####
@@ -274,17 +281,6 @@ domissf <- function(missdata, reps = NIMPS){
 	out
 }
 
-dorfimpute <- function(missdata, reps = NIMPS){
-	# Cumulative hazard is the outcome, filling in missing data
-	# using proximities, using a 300-tree Random Forest.
-	out <- list()
-	for (i in 1:reps){
-		invisible(capture.output(
-			out[[i]] <- rfImpute(cumhaz ~ ., missdata, iter = 10)))
-	}
-	out
-}
-
 domice <- function(missdata, functions, reps = NIMPS){
 	mids <- mice(missdata, defaultMethod = functions,
 		m = reps, visitSequence = 'monotone',
@@ -299,14 +295,13 @@ doanalysis <- function(x){
 	missdata <- makeMarSurv(data)
 	out <- list()
 	out$full <- coxfull(data)
-	out$rfimpute <- coximpute(dorfimpute(missdata))
 	out$missf <- coximpute(domissf(missdata))
 	out$rf5 <- coximpute(domice(missdata, 'rfcont5'))
 	out$rf10 <- coximpute(domice(missdata, 'rfcont10'))
 	out$rf20 <- coximpute(domice(missdata, 'rfcont20'))
-	out$rf50 <- coximpute(domice(missdata, 'rfcont50'))
 	out$rf100 <- coximpute(domice(missdata, 'rfcont100'))
-	out$rf <- coximpute(domice(missdata, 'rf'))
+	out$rfdoove10 <- coximpute(domice(missdata, 'rfdoove10'))
+	out$rfdoove100 <- coximpute(domice(missdata, 'rfdoove100'))
 	out$cart <- coximpute(domice(missdata, 'cart'))
 	out$mice <- coximpute(domice(missdata, 'norm'))
 	out
@@ -355,12 +350,12 @@ if (!exists('REFERENCE_SAMPLESIZE')){
 
 # Use parallel processing, if available, to create
 # datasets more quickly.
-if ('parallel' %in% loadedNamespaces() &
-	!is.null(getOption('mc.cores')) &
-	Sys.info()['sysname'] == 'Linux'){
+if ('parallel' %in% loadedNamespaces() &&
+	!is.null(getOption('mc.cores')) &&
+	.Platform$OS.type == 'unix'){
 	REFERENCE_SAMPLESIZE <- REFERENCE_SAMPLESIZE %/%
 		getOption('mc.cores')
-	simdata <- mclapply(1:getOption('mc.cores'),
+	simdata <- parallel::mclapply(1:getOption('mc.cores'),
 		function(x) makeSurv(REFERENCE_SAMPLESIZE))
 	simdata <- do.call('rbind', simdata)
 } else {
@@ -401,9 +396,10 @@ if (!exists('NIMPS')){
 	NIMPS <- 3
 }
 # Use parallel processing if the 'parallel' package is loaded
-if ('parallel' %in% loadedNamespaces() & Sys.info()['sysname'] == 'Linux'){
+if ('parallel' %in% loadedNamespaces() &&
+	.Platform$OS.type == 'unix'){
 	cat('Using parallel processing\n')
-	results <- mclapply(1:N, doanalysis)
+	results <- parallel::mclapply(1:N, doanalysis)
 } else {
 	results <- lapply(1:N, doanalysis)
 }
@@ -412,11 +408,10 @@ if ('parallel' %in% loadedNamespaces() & Sys.info()['sysname'] == 'Linux'){
 We used the following methods of multiple imputation. The number of imputations was \Sexpr{NIMPS}. In each case, the imputation model for $x_3$ contained $x_1$, $x_2$, the event indicator and the marginal Nelson-Aalen cumulative hazard:
 
 \begin{description}
-\item [rfImpute] -- a single imputation method in the randomForest package, which uses the proximity matrix of a Random Forest to impute missing predictor variables. The marginal Nelson-Aalen cumulative hazard was considered as the `response' for the purpose of running this algorithm. It was run with 300 trees (default) and 10 iterations.
 \item [missForest] -- from the missForest package, which completes a dataset in an iterative way using Random Forest prediction. It was run with maximum 10 iterations (default) and 100 trees per forest (default).
 \item [CART MICE] -- Clasification and regression tree MICE method from the mice package (mice.impute.cart).
-\item [RF MICE (Doove)] -- Random Forest MICE method from Doove et al.\ \cite{doove}, which is available as function mice.impute.rf in the mice package.
-\item [RFcont MICE] -- Random Forest MICE method from the CALIBERrfimpute package with 5, 10, 20, 50 or 100 trees.
+\item [RF MICE (Doove)] -- Random Forest MICE method from Doove et al.\ \cite{doove}, which is available as function mice.impute.rf in the mice package, with 10 or 100 trees.
+\item [RFcont MICE] -- Random Forest MICE method from the CALIBERrfimpute package with 5, 10, 20 or 100 trees.
 \item [Parametric MICE] -- normal-based linear regression with default settings, in which the imputation model for $x_3$ is of the form:
 
 $$x_3 = \beta_0 + \beta_1.x_1 + \beta_2.x_2 + \beta_3.\mathrm{event} + \beta_4.\mathrm{cumhaz} + e$$
@@ -429,7 +424,7 @@ We analysed \Sexpr{N} samples. We calculated the following for each method and e
 \begin{itemize}
 \item Bias of log hazard ratio
 \item Standard error of bias (Monte Carlo error)
-\item Z-score for bias
+\item Mean square error
 \item Standard deviation of estimated log hazard ratio
 \item Mean length of 95\% confidence intervals
 \item Coverage of 95\% confidence intervals
@@ -443,31 +438,31 @@ getParams <- function(coef, method){
 	})
 	bias <- mean(estimates) - kLogHR
 	se_bias <- sd(estimates) / sqrt(length(estimates))
-	z <- bias / se_bias
+	mse <- mean((estimates - kLogHR) ^ 2)
 	ci_len <- mean(sapply(results, function(x){
 		x[[method]][coef, 'hi 95'] - x[[method]][coef, 'lo 95']
 	}))
 	ci_cov <- mean(sapply(results, function(x){
 		x[[method]][coef, 'cover']
 	}))
-	out <- c(bias, se_bias, z, sd(estimates), ci_len, ci_cov)
-	names(out) <- c('bias', 'se_bias', 'z_bias', 'sd', 'ci_len', 'ci_cov')
+	out <- c(bias, se_bias, mse, sd(estimates), ci_len, ci_cov)
+	names(out) <- c('bias', 'se_bias', 'mse', 'sd', 'ci_len', 'ci_cov')
 	out
 }
 
 showTable <- function(coef){
-	methods <- c('full', 'rfimpute', 'missf', 'cart', 'rf',
-		'rf5', 'rf10', 'rf20', 'rf50', 'rf100', 'mice')
-	methodnames <- c('Full data', 'rfImpute', 'missForest',
-		'CART MICE', 'RF MICE (Doove)',
-		paste('RFcont MICE, ', c(5, 10, 20, 50, 100), 'trees'),
+	methods <- c('full', 'missf', 'cart', 'rfdoove10',
+		'rfdoove100', 'rf5', 'rf10', 'rf20', 'rf100', 'mice')
+	methodnames <- c('Full data', 'missForest', 'CART MICE',
+		'RF Doove MICE 10', 'RF Doove MICE 100',
+		paste('RFcont MICE', c(5, 10, 20, 100)),
 		'Parametric MICE')
 	out <- t(sapply(methods, function(x){
 		getParams(coef, x)
 	}))
 	out <- formatC(out, digits = 3, format = 'fg')
-	out <- rbind(c('', 'Standard', 'Z-score ', 'SD of', 'Mean 95%', '95% CI'),
-		c('Bias', 'error of bias', 'for bias', 'estimate',
+	out <- rbind(c('', 'Standard', 'Mean', 'SD of', 'Mean 95%',
+		'95% CI'), c('Bias', 'error of bias', 'square error', 'estimate',
 		'CI length', 'coverage'), out)
 	out <- cbind(c('', '', methodnames), out)
 	print(xtable(out), floating = FALSE, include.rownames = FALSE,
@@ -475,11 +470,9 @@ showTable <- function(coef){
 }
 @
 
-\clearpage
 \section{Results}
 
 All the true log hazard ratios were set at \Sexpr{kLogHR}.
-The Z-score is defined as the mean bias divided by the empirical standard error of the estimates.
 
 \subsection{Fully observed variables}
 
@@ -520,7 +513,7 @@ The following graph shows the bias for RFcont MICE methods by number of trees
 \vspace{1em}
 
 <<echo=FALSE,fig=TRUE>>=
-numtrees <- c(5, 10, 20, 50, 100)
+numtrees <- c(5, 10, 20, 100)
 bias <- sapply(numtrees, function(x){
 	getParams('x3', paste('rf', x, sep=''))['bias']
 })
@@ -532,11 +525,13 @@ upper_bias <- bias + 1.96*se_bias
 
 # Blank plot
 plot(-100, 0, type = 'p', pch = 15, cex = 1.3, ylab = 'Bias', 
-	xlab = 'Number of trees', xlim = c(0,100), ylim = c(min(lower_bias), max(upper_bias)))
+	xlab = 'Number of trees', xlim = c(0,100),
+	ylim = c(min(lower_bias), max(upper_bias)))
 # Zero bias line
 lines(c(0,100), c(0,0), lty = 2, color = 'gray')
 # Confidence interval lines
-for (i in 1:5){lines(rep(numtrees[i], 2), c(lower_bias[i], upper_bias[i]))}
+for (i in 1:5){lines(rep(numtrees[i], 2),
+	c(lower_bias[i], upper_bias[i]))}
 # Points
 points(numtrees, bias, pch = 15, cex = 1.3)
 title('Bias in estimate of x3 coefficient after\nmultiple imputation using RFcont MICE')
@@ -678,15 +673,15 @@ maketable <- function(comparison){
 	
 	cat('\n\\vspace{1em}\n')
 	
-	compare <- cbind(comparison('rf10', 'rf'),
-		comparison('rf10', 'cart'),
-		comparison('rf', 'cart'))
+	compare <- cbind(comparison('rfdoove10', 'rf10'),
+		comparison('rfdoove10', 'cart'),
+		comparison('rfdoove10', 'rfdoove100'))
 	compare <- cbind(rownames(compare), compare)
 	compare <- rbind(
-		c('', 'RFcont MICE 10 vs', 'RFcont MICE 10 vs',
-			'RF MICE (Doove) vs'),
-		c('Coefficient', 'RF MICE (Doove)',
-			'CART MICE', 'CART MICE'),
+		c('', 'RF Doove MICE 10 vs', 'RF Doove MICE 10 vs',
+			'RF Doove MICE 10 vs'),
+		c('Coefficient', 'RFcont MICE 10',
+			'CART MICE', 'RF Doove MICE 100'),
 		compare)
 	print(xtable(compare), include.rownames = FALSE,
 		include.colnames = FALSE, floating = FALSE,
@@ -750,11 +745,11 @@ Using RFcont MICE, the $x_3$ coefficient was biased towards the null with 5 or 1
 
 Confidence intervals estimated using Doove's Random Forest MICE method were slightly shorter than those obtained using RFcont MICE but coverage was \textgreater 95\% with both methods.
 
-Computation time for Random Forest MICE methods was proportional to the number of trees; Doove's method with 100 trees took about 10 times as long as RFcont with 10 trees.
+Doove's method was slightly slower than RFcont and the computation time for each Random Forest method was proportional to the number of trees.
 
-\subsection{rfImpute and missForest}
+\subsection{missForest}
 
-Parameters estimated after imputation using rfImpute and missForest were biased and the coverage of 95\% confidence intervals was less than 95\%. These methods are not suitable for multiple imputation. Failure to draw from the correct conditional distribution leads to bias and underestimation of the uncertainty when statistical models are fitted to imputed data. 
+Parameters estimated after imputation using missForest were biased and the coverage of 95\% confidence intervals was less than 95\%. Failure to draw from the correct conditional distribution leads to bias and underestimation of the uncertainty when statistical models are fitted to imputed data. 
 
 \subsection{Implications for further research}
 
@@ -788,13 +783,12 @@ showfunction('makeMarSurv')
 showfunction('coxfull')
 showfunction('coximpute')
 showfunction('domissf')
-showfunction('dorfimpute')
 showfunction('mice.impute.cart')
-showfunction('mice.impute.rf')
+showfunction('mice.impute.rfdoove10')
+showfunction('mice.impute.rfdoove100')
 showfunction('mice.impute.rfcont5')
 showfunction('mice.impute.rfcont10')
 showfunction('mice.impute.rfcont20')
-showfunction('mice.impute.rfcont50')
 showfunction('mice.impute.rfcont100')
 showfunction('domice')
 showfunction('doanalysis')
@@ -835,10 +829,15 @@ library(parallel) # Use parallel processing on Unix
 # Initialise constants
 kPmiss <- 0.2 # probability of missingness
 kLogHR <- 0.5 # true log hazard ratio
-kSampleSize <- 2000 # number of patients in simulated datasets
+
+# Set number of patients in simulated datasets
+NPATS <- 2000
 
 # Set number of samples
 N <- 1000
+
+# Set number of imputations
+NIMPS <- 10
 
 # Perform the simulation
 results <- mclapply(1:N, doanalysis)
