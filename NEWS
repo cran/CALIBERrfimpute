@@ -1,6 +1,18 @@
 =====================================
+Version 0.1-6
+=====================================
+
+BUG FIXES:
+
+- Errors in mice.impute.rfcat and mice.impute.rfcont
+  when there is one missing value and multiple predictors
+  (thanks to David Erceg-Hurn for finding this bug)
+- Error in mice.impute.rfcat when all observed
+  values are identical (thanks to David Erceg-Hurn for
+  finding this bug)
+
+=====================================
 Version 0.1-5
-third release onto CRAN
 =====================================
 
 CHANGES:
@@ -9,6 +21,7 @@ CHANGES:
   with different numbers of trees. Remove
   rfImpute from vignette, as it is not
   suitable for survival data
+- Updated author names in DESCRIPTION.
 
 BUG FIXES:
 

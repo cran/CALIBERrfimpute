@@ -35,16 +35,16 @@ mice.impute.rfcont <- function(y, ry, x,
 	}
 
 	# Only bootstrap if more than one tree, because Random Forest
-	# fits to a bootstrap sample. Use as.matrix() to ensure that xobs
-	# is a matrix even if only one predictor
+	# fits to a bootstrap sample. Use drop = FALSE to ensure that the
+	# predictor matrix remains a matrix
 	if (ntree_cont > 1){
 		yobs <- y[ry][bootsample]
-		xobs <- as.matrix(as.matrix(x[ry, ])[bootsample, ])
+		xobs <- x[ry, , drop = FALSE][bootsample, , drop = FALSE]
 	} else {
 		yobs <- y[ry]
-		xobs <- as.matrix(x[ry, ])
+		xobs <- x[ry, , drop = FALSE]
 	}
-	xmiss <- as.matrix(x[!ry, ])
+	xmiss <- x[!ry, , drop = FALSE]
 	# Build a random forest
 	rf <- randomForest(xobs, yobs, ntree = ntree_cont,
 		nodesize = nodesize_cont, maxnodes = maxnodes_cont, ...)

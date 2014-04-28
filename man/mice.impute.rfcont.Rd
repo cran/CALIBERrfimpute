@@ -95,9 +95,15 @@ but the mean length of confidence intervals was shorter with mice.impute.rfcont.
 
 \examples{
 set.seed(1)
-mydata <- simdata(100)
 
-# Describe data
+# A small dataset with a single row to be imputed
+mydata <- data.frame(x1 = c(2, 2, NA, 4), x2 = 1:4, x3 = c(1, 3, NA, 3))
+mice(mydata, method = c('norm', 'norm', 'norm'), m = 2, maxit = 2)
+mice(mydata[, 1:2], method = c('rfcont', 'rfcont'), m = 2, maxit = 2)
+mice(mydata, method = c('rfcont', 'rfcont', 'rfcont'), m = 2, maxit = 2)
+
+# A larger simulated dataset
+mydata <- simdata(100)
 cat('\nSimulated multivariate normal data:\n')
 print(data.frame(mean = colMeans(mydata), sd = sapply(mydata, sd)))
 

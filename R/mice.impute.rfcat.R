@@ -9,8 +9,8 @@ mice.impute.rfcat <- function(y, ry, x,
 	x <- as.matrix(x)
 	bootsample <- sample(sum(ry), replace = TRUE)
 	yobs <- y[ry][bootsample]
-	xobs <- as.matrix(as.matrix(x[ry, ])[bootsample, ])
-	xmiss <- as.matrix(x[!ry, ])
+	xobs <- x[ry, , drop = FALSE][bootsample, , drop = FALSE]
+	xmiss <- x[!ry, , drop = FALSE]
 	
 	# Use ntree to pass the number of trees (consistent with
 	# mice.impute.rf in the mice package)
@@ -58,13 +58,25 @@ mice.impute.rfcat <- function(y, ry, x,
 
 	# Build a set of trees
 	trees <- lapply(1:ntree_cat, function(x){
-		randomForest(xobs, yobs, ntree = 1, nodesize = nodesize_cat,
-			maxnodes = maxnodes_cat)
+		if (length(unique(yobs)) == 1){
+			# if all the variables to be imputed are unique
+			yobs[1]
+		} else {
+			randomForest(xobs, yobs, ntree = 1, nodesize = nodesize_cat, 
+				maxnodes = maxnodes_cat)
+		}      
 	})
 
 	# Choose a random tree and predict the outcome for each observation
-	yimp <- apply(xmiss, 1, function(x){
-		predict(trees[[sample(ntree_cat, 1)]], x)})
+	yimp <- apply(xmiss, 1, function(x) {
+		thetree <- trees[[sample(ntree_cat, 1)]]
+		if ('randomForest' %in% class(thetree)){
+			predict(thetree, x)
+		} else {
+			# a single value
+			thetree
+		}
+	})
 
 	# Restore original factor categories if necessary
 	if (changes){
