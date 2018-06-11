@@ -1,5 +1,26 @@
 =====================================
+Version 1.0-1
+sixth release on CRAN
+=====================================
+
+BUG FIXES:
+
+- Vignette updated to work with mice 3
+  format of multiple imputation results.
+
+=====================================
+Version 1.0-0
+fifth release on CRAN
+=====================================
+
+CHANGES:
+
+- Allow mice.impute.rfcat to work with logical
+  variables (consistent with mice.impute.logreg)
+
+=====================================
 Version 0.1-6
+fourth release on CRAN
 =====================================
 
 BUG FIXES:
@@ -13,6 +34,7 @@ BUG FIXES:
 
 =====================================
 Version 0.1-5
+third release on CRAN
 =====================================
 
 CHANGES:

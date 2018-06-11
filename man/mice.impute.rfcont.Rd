@@ -97,7 +97,8 @@ but the mean length of confidence intervals was shorter with mice.impute.rfcont.
 set.seed(1)
 
 # A small dataset with a single row to be imputed
-mydata <- data.frame(x1 = c(2, 2, NA, 4), x2 = 1:4, x3 = c(1, 3, NA, 3))
+mydata <- data.frame(x1 = c(2, 3, NA, 4, 5, 1, 6, 8, 7, 9), x2 = 1:10,
+    x3 = c(1, 3, NA, 4, 2, 8, 7, 9, 6, 5))
 mice(mydata, method = c('norm', 'norm', 'norm'), m = 2, maxit = 2)
 mice(mydata[, 1:2], method = c('rfcont', 'rfcont'), m = 2, maxit = 2)
 mice(mydata, method = c('rfcont', 'rfcont', 'rfcont'), m = 2, maxit = 2)

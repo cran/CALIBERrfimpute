@@ -1,4 +1,6 @@
 export(mice.impute.rfcont, mice.impute.rfcat, setRFoptions, makemar, simdata)
-
-import(mice, randomForest, mvtnorm)
+importFrom("stats", "predict", "rbinom", "rnorm")
+importFrom("randomForest", "randomForest")
+importFrom("mvtnorm", "rmvnorm")
+import(mice)
 

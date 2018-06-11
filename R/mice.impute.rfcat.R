@@ -5,6 +5,14 @@ mice.impute.rfcat <- function(y, ry, x,
 	# ry is a vector of indicators as to whether y is observed
 	# x is the matrix of predictors
 
+	# If y is logical, convert to factor
+	if (is.logical(y)){
+		convertlogical <- TRUE
+		y <- as.factor(y)
+	} else {
+		convertlogical <- FALSE
+	}
+
 	# Select a bootstrap sample
 	x <- as.matrix(x)
 	bootsample <- sample(sum(ry), replace = TRUE)
@@ -87,6 +95,11 @@ mice.impute.rfcat <- function(y, ry, x,
 		levels(lookup$old) <- labels
 		temp <- merge(temp, lookup, all.x = TRUE)
 		yimp <- temp[order(temp$id_yimp), 'old']
+	}
+	
+	# Convert from factor back to logical
+	if (convertlogical){
+		yimp <- as.logical(yimp == 'TRUE')
 	}
 
 	return(yimp)

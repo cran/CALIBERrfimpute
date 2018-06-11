@@ -1,8 +1,8 @@
 Package: CALIBERrfimpute
 Type: Package
-Title: Multiple imputation using MICE and Random Forest
-Version: 0.1-6
-Date: 2014-04-28
+Title: Multiple Imputation Using MICE and Random Forest
+Version: 1.0-1
+Date: 2018-06-05
 Authors@R: c(person("Anoop", "Shah", role=c("aut", "cre"), email="anoop@doctors.org.uk"),
    person("Jonathan", "Bartlett", role="ctb"),
    person("Harry", "Hemingway", role="ths"),
@@ -19,10 +19,7 @@ Author: Anoop Shah [aut, cre],
   Owen Nicholas [ths],
   Aroon Hingorani [ths]
 Maintainer: Anoop Shah <anoop@doctors.org.uk>
-Repository: CRAN
-Repository/R-Forge/Project: caliberanalysis
-Repository/R-Forge/Revision: 41
-Repository/R-Forge/DateTimeStamp: 2014-04-30 11:27:26
-Date/Publication: 2014-05-07 19:26:43
-Packaged: 2014-04-30 12:36:41 UTC; rforge
 NeedsCompilation: no
+Packaged: 2018-06-08 17:10:31 UTC; anoop
+Repository: CRAN
+Date/Publication: 2018-06-11 10:40:00 UTC
