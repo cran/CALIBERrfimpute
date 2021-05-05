@@ -67,7 +67,10 @@ A vector of imputed values of y.
 }
 
 \references{
-Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H. Comparison of Random Forest and parametric imputation models for imputing missing data using MICE: a CALIBER study. American Journal of Epidemiology 2014. doi: \href{http://dx.doi.org/10.1093/aje/kwt312}{10.1093/aje/kwt312}
+Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H.
+Comparison of Random Forest and parametric imputation models for imputing missing
+data using MICE: a CALIBER study. American Journal of Epidemiology 2014; 179(6): 764--774. doi:10.1093/aje/kwt312
+\url{https://academic.oup.com/aje/article/179/6/764/107562}
 }
 
 \author{

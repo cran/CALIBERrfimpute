@@ -1,14 +1,14 @@
 Package: CALIBERrfimpute
 Type: Package
 Title: Multiple Imputation Using MICE and Random Forest
-Version: 1.0-1
-Date: 2018-06-05
+Version: 1.0-5
+Date: 2021-04-29
 Authors@R: c(person("Anoop", "Shah", role=c("aut", "cre"), email="anoop@doctors.org.uk"),
    person("Jonathan", "Bartlett", role="ctb"),
    person("Harry", "Hemingway", role="ths"),
    person("Owen", "Nicholas", role="ths"),
    person("Aroon", "Hingorani", role="ths"))
-Description: Functions to impute using Random Forest under Full Conditional Specifications (Multivariate Imputation by Chained Equations). The CALIBER programme is funded by the Wellcome Trust (086091/Z/08/Z) and the National Institute for Health Research (NIHR) under its Programme Grants for Applied Research programme (RP-PG-0407-10314). The author is supported by a Wellcome Trust Clinical Research Training Fellowship (0938/30/Z/10/Z).
+Description: Functions to impute using random forest under full conditional specifications (multivariate imputation by chained equations). The methods are described in Shah and others (2014) <doi:10.1093/aje/kwt312>.
 License: GPL-3
 Depends: mice (>= 2.20)
 Imports: mvtnorm, randomForest
@@ -19,7 +19,8 @@ Author: Anoop Shah [aut, cre],
   Owen Nicholas [ths],
   Aroon Hingorani [ths]
 Maintainer: Anoop Shah <anoop@doctors.org.uk>
+BuildVignettes: TRUE
 NeedsCompilation: no
-Packaged: 2018-06-08 17:10:31 UTC; anoop
+Packaged: 2021-04-30 10:46:27 UTC; anoop
 Repository: CRAN
-Date/Publication: 2018-06-11 10:40:00 UTC
+Date/Publication: 2021-05-05 09:00:04

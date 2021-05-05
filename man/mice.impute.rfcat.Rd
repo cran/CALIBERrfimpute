@@ -63,7 +63,10 @@ A vector of imputed values of y.
 }
 
 \references{
-Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H. Comparison of Random Forest and parametric imputation models for imputing missing data using MICE: a CALIBER study. American Journal of Epidemiology 2014. doi: \href{http://dx.doi.org/10.1093/aje/kwt312}{10.1093/aje/kwt312}
+Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H.
+Comparison of Random Forest and parametric imputation models for imputing missing
+data using MICE: a CALIBER study. American Journal of Epidemiology 2014; 179(6): 764--774. doi:10.1093/aje/kwt312
+\url{https://academic.oup.com/aje/article/179/6/764/107562}
 }
 
 \author{
@@ -107,7 +110,7 @@ print(sapply(mymardata, function(x){sum(is.na(x))}))
 
 # Test imputation of a single column in a two-column dataset
 cat('\nTest imputation of a simple dataset')
-print(mice(mymardata[, c('y', 'x2')], method = 'rfcat'))
+print(mice(mymardata[, c('y', 'x2')], method = 'rfcat', m = 2, maxit = 2))
 
 # Analyse data
 cat('\nFull data analysis:\n')
@@ -115,18 +118,20 @@ print(summary(lm(y ~ x1 + x2 + x3, data = mydata)))
 
 cat('\nMICE normal and logistic:\n')
 print(summary(pool(with(mice(mymardata,
-    method = c('', 'norm', 'logreg', '', '')), lm(y ~ x1 + x2 + x3)))))
+    method = c('', 'norm', 'logreg', '', ''), m = 2, maxit = 2),
+    lm(y ~ x1 + x2 + x3)))))
 
 # Set options for Random Forest
 setRFoptions(ntree_cat = 10)
 
 cat('\nMICE using Random Forest:\n')
 print(summary(pool(with(mice(mymardata,
-    method = c('', 'rfcont', 'rfcat', '', '')), lm(y ~ x1 + x2 + x3)))))
+    method = c('', 'rfcont', 'rfcat', '', ''), m = 2, maxit = 2),
+    lm(y ~ x1 + x2 + x3)))))
 
 cat('\nDataset with unobserved levels of a factor\n')
 data3 <- data.frame(x1 = 1:100, x2 = factor(c(rep('A', 25),
     rep('B', 25), rep('C', 25), rep('D', 25))))
 data3$x2[data3$x2 == 'D'] <- NA
-mice(data3, method = c('', 'rfcat'))
+mice(data3, method = c('', 'rfcat'), m = 2, maxit = 2)
 }

@@ -1,16 +1,9 @@
-\documentclass{scrartcl}
-\usepackage[utf8]{inputenc}
-\usepackage{amsmath}
-\usepackage[top=2cm,bottom=2.5cm,left=3cm,right=3cm]{geometry}
-%\VignetteIndexEntry{Comparison of parametric and Random Forest MICE in imputation of missing data in survival analysis}
+### R code from vignette source 'simstudy_survival.Rnw'
+### Encoding: UTF-8
 
-% This is a simulation study, testing various imputation
-% methods in a survival scenario with two fully
-% observed continuous variables and one partially
-% observed continuous variable, missingness at random
-% dependent on the observed variable.
-
-<<echo=FALSE,results=hide>>=
+###################################################
+### code chunk number 1: simstudy_survival.Rnw:13-42
+###################################################
 # Chunk 1
 library(CALIBERrfimpute)
 library(missForest)
@@ -40,49 +33,11 @@ if (!exists('NPATS')){
 # To use more than 4 imputations, set NIMPS to a number greater than 4
 # e.g.
 # NIMPS <- 10
-@
 
-\title{\Large Comparison of parametric and Random Forest MICE in imputation of missing data in survival analysis}
 
-\author{Anoop D. Shah, Jonathan W. Bartlett, James Carpenter, \\ Owen Nicholas and Harry Hemingway}
-
-\usepackage{hyperref}
-
-\begin{document}
-\SweaveOpts{concordance=TRUE}
-
-\maketitle
-
-\tableofcontents
-
-\section{Introduction}
-
-This is a simulation study comparing various methods for imputation of missing covariate data in a survival analysis in which there are interactions between the predictor variables. We compare our new Random Forest method for MICE (Multivariate Imputation by Chained Equations) with other imputation methods and full data analysis. In our Random Forest method (RFcont), the conditional mean missing values are predicted using Random Forest and imputed values are drawn from Normal distributions centred on the predicted means \cite{shah}.
-
-We also perform a comparison with the methods recently published by Doove et al.\ \cite{doove}:  mice.impute.cart (classification and regression trees in MICE) and mice.impute.rf (MICE using Random Forests).
-
-\section{Methods}
-
-We used the R packages \textbf{CALIBERrfimpute}, \textbf{survival}, \textbf{xtable}, \textbf{missForest} and \textbf{randomForest}. We created simulated survival datasets with two fully observed predictor variables ($x_1$, $x_2$) and a partially observed predictor ($x_3$), which depends on $x_1$, $x_2$ and their interaction.  They were generated as follows:
-
-\begin{description}
-\item [$x_1$] Standard normal distribution
-\item [$x_2$] Standard normal distribution, independent of $x_1$
-\item [$x_3$] Derived from $x_1$ and $x_2$: $x_3 = 0.5(x_1 + x_2 - x_1.x_2) + e$
-      where $e$ is normally distributed with mean 0 and variance 1.
-\end{description}
-
-The equation for the log hazard of patient $i$ was given by:
-
-\begin{equation}
-h_i = \beta_{1} x_{1i} + \beta_{2} x_{2i} + \beta_{3} x_{3i}
-\end{equation}
-
-where all the $\beta$ coefficients were set to \Sexpr{kLogHR}.
-
-We used an exponential distribution to generate a survival time for each patient. We also generated an observation time for each patient, as a random draw from a uniform distribution bounded by zero and the 50\textsuperscript{th} percentile of survival time. If the observation time was less than the survival time, the patient was considered as censored (event indicator 0, and the patient's follow-up ends on their censoring date), otherwise the event indicator was 1, with follow-up ending on the date of event.
-
-<<echo=FALSE>>=
+###################################################
+### code chunk number 2: simstudy_survival.Rnw:85-339
+###################################################
 # Chunk 2
 
 #### DATA GENERATING FUNCTIONS ####
@@ -337,27 +292,30 @@ doanalysis <- function(x){
 	out$mice <- coximpute(domice(missdata, 'norm'))
 	out
 }
-@
 
 
-<<echo=FALSE,fig=TRUE>>=
+###################################################
+### code chunk number 3: simstudy_survival.Rnw:343-349
+###################################################
 # Chunk 3
 
 mydata <- makeSurv(200)
 plot(mydata[, c('x1', 'x2', 'x3')],
 	main = "Associations between predictor variables in a sample dataset")
 mydata <- makeSurv(20000)
-@
 
-Linear regression model relating $x_3$ to $x_1$ and $x_2$:
 
-<<echo=TRUE>>=
+###################################################
+### code chunk number 4: simstudy_survival.Rnw:354-357
+###################################################
 # Chunk 4
 
 summary(lm(x3 ~ x1*x2, data = mydata))
-@
 
-<<echo=FALSE,fig=TRUE>>=
+
+###################################################
+### code chunk number 5: simstudy_survival.Rnw:360-373
+###################################################
 # Chunk 5
 
 mydata <- makeSurv(2000)
@@ -371,11 +329,11 @@ points(mydata$x1[is.na(mydata2$x3)], mydata$x3[is.na(mydata2$x3)],
 legend('bottomright', legend = c('x3 observed', 'x3 missing'),
 	col = c('black', 'red'), pch = 19)
 title('Association of predictor variables x1 and x3')
-@
 
-All true log hazard ratios were assumed to be \Sexpr{kLogHR}, with hazard ratios = \Sexpr{format(exp(kLogHR), digits = 3)}. We checked that the hazard ratios in the simulated data were as expected for a large sample:
 
-<<echo=TRUE>>=
+###################################################
+### code chunk number 6: simstudy_survival.Rnw:378-404
+###################################################
 # Chunk 6
 
 # Cox proportional hazards analysis
@@ -402,28 +360,11 @@ if ('parallel' %in% loadedNamespaces() &&
 }
 
 summary(coxph(myformula, data = simdata))
-@
 
-We created datasets containing \Sexpr{kSampleSize} simulated patients. For each dataset, we first analysed the complete dataset with no values missing, then artificially created missingness in variable $x_3$, imputed the missing values using various methods, and analysed the imputed datasets. We combined parameter estimates from multiply imputed datasets using Rubin's rules.
 
-\subsection{Missingness mechanism}
-
-Missingness was imposed in $x_3$ dependent on $x_1$, $x_2$, the event indicator and the marginal Nelson-Aalen cumulative hazard, using a logistic regression model. The linear predictors were offset by an amount chosen to make the overall proportion of each variable missing approximately \Sexpr{kPmiss}, i.e.:
-
-\begin{equation}
-P(\mathrm{miss})_i =
-\frac{\exp({lp}_i + \mathrm{offset})}{1 + \exp({lp}_i + \mathrm{offset})}
-\end{equation}
-
-\begin{equation}
-lp_i = 0.1x_{1i} + 0.1x_{2i} + 0.1 \times \mathrm{cumhaz}_i + 0.1 \times \mathrm{event}_i
-\end{equation}
-
-where `event' is the event indicator and `cumhaz' is the marginal Nelson-Aalen cumulative hazard.
-
-We analysed the datasets with missing data using different methods of multiple imputation. We calculated the marginal Nelson-Aalen cumulative hazard and included it in all imputation models, along with the event indicator and follow-up time.
-
-<<echo=TRUE>>=
+###################################################
+### code chunk number 7: simstudy_survival.Rnw:426-446
+###################################################
 # Chunk 7
 
 # Setting analysis parameters: To analyse more than 3 samples,
@@ -444,35 +385,11 @@ if ('parallel' %in% loadedNamespaces() &&
 } else {
 	results <- lapply(1:N, doanalysis)
 }
-@
 
-We used the following methods of multiple imputation. The number of imputations was \Sexpr{NIMPS}. In each case, the imputation model for $x_3$ contained $x_1$, $x_2$, the event indicator and the marginal Nelson-Aalen cumulative hazard:
 
-\begin{description}
-\item [missForest] -- from the missForest package, which completes a dataset in an iterative way using Random Forest prediction. It was run with maximum 10 iterations (default) and 100 trees per forest (default).
-\item [CART MICE] -- Clasification and regression tree MICE method from the mice package (mice.impute.cart).
-\item [RF MICE (Doove)] -- Random Forest MICE method from Doove et al.\ \cite{doove}, which is available as function mice.impute.rf in the mice package, with 10 or 100 trees.
-\item [RFcont MICE] -- Random Forest MICE method from the CALIBERrfimpute package with 5, 10, 20 or 100 trees.
-\item [Parametric MICE] -- normal-based linear regression with default settings, in which the imputation model for $x_3$ is of the form:
-
-$$x_3 = \beta_0 + \beta_1.x_1 + \beta_2.x_2 + \beta_3.\mathrm{event} + \beta_4.\mathrm{cumhaz} + e$$
-
-where $e$ is the residual variance.
-\end{description}
-
-We analysed \Sexpr{N} samples. We calculated the following for each method and each parameter:
-
-\begin{itemize}
-\item Bias of log hazard ratio
-\item Standard error of bias (Monte Carlo error)
-\item Mean square error
-\item Standard deviation of estimated log hazard ratio
-\item Mean length of 95\% confidence intervals
-\item Coverage of 95\% confidence intervals
-	(proportion containing the true log hazard ratio)
-\end{itemize}
-
-<<echo=FALSE>>=
+###################################################
+### code chunk number 8: simstudy_survival.Rnw:475-514
+###################################################
 # Chunk 8
 
 getParams <- function(coef, method){
@@ -512,57 +429,35 @@ showTable <- function(coef){
 	print(xtable(out), floating = FALSE, include.rownames = FALSE,
 		include.colnames = FALSE, hline.after = c(0, 2, nrow(out)))
 }
-@
 
-\section{Results}
 
-All the true log hazard ratios were set at \Sexpr{kLogHR}.
-
-\subsection{Fully observed variables}
-
-Log hazard ratio for the continuous fully observed variable $x_1$:
-
-\vspace{1em}
-
-<<echo=FALSE,results=tex>>=
+###################################################
+### code chunk number 9: simstudy_survival.Rnw:527-530
+###################################################
 # Chunk 9
 
 showTable('x1')
-@
 
-\vspace{1em}
 
-Log hazard ratio for the continuous fully observed variable $x_2$:
-
-\vspace{1em}
-
-<<echo=FALSE,results=tex>>=
+###################################################
+### code chunk number 10: simstudy_survival.Rnw:539-542
+###################################################
 # Chunk 10
 
 showTable('x2')
-@
 
-\clearpage
-\subsection{Partially observed variable}
 
-Log hazard ratio for the continuous partially observed variable $x_3$:
-
-\vspace{1em}
-
-<<echo=FALSE,results=tex>>=
+###################################################
+### code chunk number 11: simstudy_survival.Rnw:552-555
+###################################################
 # Chunk 11
 
 showTable('x3')
-@
 
-\vspace{1em}
 
-The following graph shows the bias for RFcont MICE methods by number of trees
-(bias estimated from \Sexpr{N} simulations; the lines denote 95\% confidence intervals):
-
-\vspace{1em}
-
-<<echo=FALSE,fig=TRUE>>=
+###################################################
+### code chunk number 12: simstudy_survival.Rnw:565-589
+###################################################
 # Chunk 12
 
 numtrees <- c(5, 10, 20, 100)
@@ -587,11 +482,11 @@ for (i in 1:5){lines(rep(numtrees[i], 2),
 # Points
 points(numtrees, bias, pch = 15, cex = 1.3)
 title('Bias in estimate of x3 coefficient after\nmultiple imputation using RFcont MICE')
-@
 
-\subsection{Pairwise comparisons between methods}
 
-<<echo=FALSE>>=
+###################################################
+### code chunk number 13: simstudy_survival.Rnw:594-745
+###################################################
 # Chunk 13
 
 # Comparing confidence interval coverage and bias between:
@@ -743,93 +638,43 @@ maketable <- function(comparison){
 		include.colnames = FALSE, floating = FALSE,
 		hline.after = c(0, 2, nrow(compare)))
 }
-@
 
-\subsubsection{Comparison of bias}
 
-Difference between absolute bias (negative means that the first method is less biased). P values from paired sample t tests. Significance level: * P \textless 0.05, ** P \textless 0.01, *** P \textless 0.001.
-
-\vspace{1em}
-
-<<echo=FALSE,results=tex>>=
+###################################################
+### code chunk number 14: simstudy_survival.Rnw:754-757
+###################################################
 # Chunk 14
 
 maketable(compareBias)
-@
 
-\subsubsection{Comparison of precision}
 
-Ratio of variance of estimates (less than 1 means that the first method is more precise). P values from F test. Significance level: * P \textless 0.05, ** P \textless 0.01, *** P \textless 0.001.
-
-\vspace{1em}
-
-<<echo=FALSE,results=tex>>=
+###################################################
+### code chunk number 15: simstudy_survival.Rnw:766-769
+###################################################
 # Chunk 15
 
 maketable(compareVariance)
-@
 
 
-\subsubsection{Comparison of confidence interval length}
-
-Ratio of mean length of 95\% confidence intervals (less than 1 means that the first method produces smaller confidence intervals). P values from paired sample t test. Significance level: * P \textless 0.05, ** P \textless 0.01, *** P \textless 0.001.
-
-\vspace{1em}
-
-<<echo=FALSE,results=tex>>=
+###################################################
+### code chunk number 16: simstudy_survival.Rnw:779-782
+###################################################
 # Chunk 16
 
 maketable(compareCIlength)
-@
 
-\subsubsection{Comparison of confidence interval coverage}
 
-Difference between percentage coverage of 95\% confidence intervals (positive means that the first method has greater coverage). P values for pairwise comparisons by McNemar's test. Significance level: * P \textless 0.05, ** P \textless 0.01, *** P \textless 0.001.
-
-\vspace{1em}
-
-<<echo=FALSE,results=tex>>=
+###################################################
+### code chunk number 17: simstudy_survival.Rnw:791-794
+###################################################
 # Chunk 17
 
 maketable(compareCoverage)
-@
 
-\section{Discussion}
 
-In this simulation, parametric MICE using the default settings yielded a biased estimate for the coefficient for the partially observed variable $x_3$. This is because the interaction between $x_1$ and $x_2$ was not included in the imputation models. The estimate using the CART or Random Forest MICE methods were less biased, more precise and had shorter confidence intervals with greater coverage. Omissions of interactions between predictors can potentially result in bias using parametric MICE even if, as in this case, the interaction is not present in the substantive model. 
-
-\subsection{CART versus Random Forest MICE}
-
-CART MICE produced estimates for the $x_3$ coefficient that were less precise than the Random Forest MICE methods, and coverage of 95\% confidence intervals was only 93\%.
-
-\subsection{Comparison of Random Forest MICE methods}
- 
-Coefficients estimated after imputation using CART or Random Forest MICE methods were slightly biased. The bias was statistically significant but small in magnitude.
-Using RFcont MICE, the $x_3$ coefficient was biased towards the null with 5 or 10 trees and biased away from the null with 20 or more trees; bias was minimised using 10 or 20 trees. 
-
-Confidence intervals estimated using Doove's Random Forest MICE method were slightly shorter than those obtained using RFcont MICE but coverage was \textgreater 95\% with both methods.
-
-Doove's method was slightly slower than RFcont and the computation time for each Random Forest method was proportional to the number of trees.
-
-\subsection{missForest}
-
-Parameters estimated after imputation using missForest were biased and the coverage of 95\% confidence intervals was less than 95\%. Failure to draw from the correct conditional distribution leads to bias and underestimation of the uncertainty when statistical models are fitted to imputed data. 
-
-\subsection{Implications for further research}
-
-This simulation demonstrates a situation in which Random Forest MICE methods have an advantage over parametric MICE. Both Doove's method (RF) and our method (RFcont) performed well, and on some performance measures Doove's method was superior. 
-
-It would be useful to compare these methods in simulations based on real datasets.
-
-\section{Appendix: R code}
-
-\subsection{R functions}
-
-This R code needs to be run in order to load the necessary functions before running the script (Section \ref{sec:script}).
-
-\subsubsection{Data generating functions}
-
-<<echo=FALSE>>=
+###################################################
+### code chunk number 18: simstudy_survival.Rnw:832-843
+###################################################
 # Chunk 18
 
 showfunction <- function(functionname){
@@ -841,11 +686,11 @@ showfunction <- function(functionname){
 }
 showfunction('makeSurv')
 showfunction('makeMarSurv')
-@
 
-\subsubsection{Functions to analyse data}
 
-<<echo=FALSE>>=
+###################################################
+### code chunk number 19: simstudy_survival.Rnw:848-862
+###################################################
 # Chunk 19
 
 showfunction('coxfull')
@@ -860,11 +705,11 @@ showfunction('mice.impute.rfcont20')
 showfunction('mice.impute.rfcont100')
 showfunction('domice')
 showfunction('doanalysis')
-@
 
-\subsubsection{Functions to compare methods}
 
-<<echo=FALSE>>=
+###################################################
+### code chunk number 20: simstudy_survival.Rnw:867-874
+###################################################
 # Chunk 20
 
 showfunction('pstar')
@@ -872,70 +717,15 @@ showfunction('compareBias')
 showfunction('compareVariance')
 showfunction('compareCIlength')
 showfunction('compareCoverage')
-@
 
-\subsubsection{Functions to compile and display results}
 
-<<echo=FALSE>>=
+###################################################
+### code chunk number 21: simstudy_survival.Rnw:879-884
+###################################################
 # Chunk 21
 
 showfunction('getParams')
 showfunction('showTable')
 showfunction('maketable')
-@
 
-\subsection{R script}
-\label{sec:script}
-Run this script after loading the functions above.
 
-\begin{Schunk}
-\begin{Sinput}
-# Install CALIBERrfimpute if necessary:
-# install.packages("CALIBERrfimpute", repos="http://R-Forge.R-project.org")
-library(CALIBERrfimpute)
-library(missForest)
-library(survival)
-library(xtable)
-library(parallel) # Use parallel processing on Unix
-
-# Initialise constants
-kPmiss <- 0.2 # probability of missingness
-kLogHR <- 0.5 # true log hazard ratio
-
-# Set number of patients in simulated datasets
-NPATS <- 2000
-
-# Set number of samples
-N <- 1000
-
-# Set number of imputations
-NIMPS <- 10
-
-# Perform the simulation
-results <- mclapply(1:N, doanalysis)
-
-# Show results
-showTable('x1'); showTable('x2'); showTable('x3')
-
-# Names of the variables in the comparison
-variables <- c('x1', 'x2', 'x3')
-
-# Show comparisons between methods
-maketable(compareBias)
-maketable(compareVariance)
-maketable(compareCIlength)
-maketable(compareCoverage)
-\end{Sinput}
-\end{Schunk}
-
-% Bibliography
-
-\begin{thebibliography}{1}
-
-\bibitem{shah} Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H. Comparison of Random Forest and Parametric Imputation Models for Imputing Missing Data Using MICE: A CALIBER Study. \textit{American Journal of Epidemiology} 2014. doi: \href{http://dx.doi.org/10.1093/aje/kwt312}{10.1093/aje/kwt312}
-
-\bibitem{doove} Doove LL, van Buuren S, Dusseldorp E. Recursive partitioning for missing data imputation in the presence of interaction effects. \textit{Computational Statistics and Data Analysis} 2014;72:92--104. doi: \href{http://dx.doi.org/10.1016/j.csda.2013.10.025}{10.1016/j.csda.2013.10.025}
-
-\end{thebibliography}
-
-\end{document}
