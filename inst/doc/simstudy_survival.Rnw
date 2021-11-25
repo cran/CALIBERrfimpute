@@ -162,99 +162,39 @@ makeMarSurv <- function(data, pmissing = kPmiss){
 
 #### IMPUTATION FUNCTIONS FROM DOOVE AND VAN BUUREN ####
 
-mice.impute.rf <- function(y, ry, x, ntrees = 100,
-	nodesize = 5, ...){
-	# Use default mtry, i.e. one third the number of predictors for
-	# categorical variables, square root of the number of predictors
-	# for continuous dependent variables
-	xobs <- as.matrix(x[ry,])
-	xmis <- as.matrix(x[!ry,])
-	yobs <- y[ry]
-	# Function to create a single tree
-	onetree <- function(xobs, xmis, yobs){
-		fit <- randomForest(yobs ~ ., data = cbind(yobs, xobs),
-			ntree = 1, replace = TRUE, type = regression,
-			sampsize = length(yobs), nodesize = 5)
-		leafnr <- predict(object = fit, newdata = xobs,
-			nodes = T)
-		nodes <- predict(object = fit, newdata = xmis,
-			nodes = T)
-		# Return a vector of observed y values that are
-		# part of the same terminal leaf as the predicted
-		# missing y value
-		donor <- lapply(nodes, function(s){
-			yobs[leafnr == s]
-		})
-		return(donor)
-	}
-	# Create a matrix of vectors of donors, from the number
-	# of trees desired
-	forest <- sapply(1:(ntrees = ntrees), FUN = function(s){
-		onetree(xobs, xmis, yobs)
-	})
-	# For each missing value, randomly choose a donor value
-	# from any of the possible donor values across all trees
-	impute <- apply(forest, MARGIN = 1, FUN = function(s){
-		sample(unlist(s), 1)
-	})
-	return(impute)
-}
-
-mice.impute.cart <- function(y, ry, x, minbucket = 5, cp = 1e-04,
-	...){
-	xobs <- as.matrix(x[ry,])
-	xmis <- as.matrix(x[!ry,])
-	yobs <- y[ry]
-	if (is.factor(yobs)==F){
-		fit <- rpart(yobs~., data = cbind(yobs,xobs), method = "anova",
-			control = rpart.control(minbucket = minbucket, cp = cp), ...)
-		leafnr  <- floor(as.numeric(row.names(fit$frame[fit$where,])))
-		fit$frame$yval <- as.numeric(row.names(fit$frame))
-		nodes <- predict(object = fit, newdata = xmis)
-		donor <- lapply(nodes, function(s) yobs[leafnr == s])
-		impute <- sapply(1:length(donor), function(s){
-			sample(donor[[s]], 1)
-		})
-	} else {
-		fit <- rpart(yobs~., data = cbind(yobs, xobs),
-			method = "class", control = rpart.control(
-			minbucket = minbucket, cp = cp), ...)
-		nodes <- predict(object = fit, newdata = xmis)
-		impute <- apply(nodes, MARGIN = 1, FUN = function(s){
-			sample(colnames(nodes), size = 1, prob = s)
-		})
-	}
-	return(impute)
-}
-
 mice.impute.rfdoove10 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntrees = 10)
+	mice::mice.impute.rf(y = y, ry = ry, x = x, ntrees = 10)
 }
 
 mice.impute.rfdoove100 <- function(y, ry, x, ...){
-	mice.impute.rf(y = y, ry = ry, x = x, ntrees = 100)
+	mice::mice.impute.rf(y = y, ry = ry, x = x, ntrees = 100)
 }
 
 #### OUR MICE RANDOM FOREST FUNCTIONS ####
 
 mice.impute.rfcont5 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 5)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 5)
 }
 
 mice.impute.rfcont10 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 10)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 10)
 }
 
 mice.impute.rfcont20 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 20)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 20)
 }
 
 mice.impute.rfcont50 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 50)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 50)
 }
 
 mice.impute.rfcont100 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 100)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 100)
 }
 
 #### FUNCTIONS TO DO THE ANALYSIS ####
@@ -603,12 +543,16 @@ title('Bias in estimate of x3 coefficient after\nmultiple imputation using RFcon
 variables <- c('x1', 'x2', 'x3')
 
 pstar <- function(x){
-	if (x < 0.001){
-		'***'
-	} else if (x < 0.01){
-		'**'
-	} else if (x < 0.05){
-		'*'
+	if (!is.na(x)){
+		if (x < 0.001){
+			'***'
+		} else if (x < 0.01){
+			'**'
+		} else if (x < 0.05){
+			'*'
+		} else {
+			''
+		}
 	} else {
 		''
 	}
@@ -806,10 +750,6 @@ CART MICE produced estimates for the $x_3$ coefficient that were less precise th
  
 Coefficients estimated after imputation using CART or Random Forest MICE methods were slightly biased. The bias was statistically significant but small in magnitude.
 Using RFcont MICE, the $x_3$ coefficient was biased towards the null with 5 or 10 trees and biased away from the null with 20 or more trees; bias was minimised using 10 or 20 trees. 
-
-Confidence intervals estimated using Doove's Random Forest MICE method were slightly shorter than those obtained using RFcont MICE but coverage was \textgreater 95\% with both methods.
-
-Doove's method was slightly slower than RFcont and the computation time for each Random Forest method was proportional to the number of trees.
 
 \subsection{missForest}
 

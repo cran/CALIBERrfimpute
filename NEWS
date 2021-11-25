@@ -1,4 +1,14 @@
 =====================================
+Version 1.0-6
+=====================================
+
+BUG FIXES:
+
+- Corrected vignette to work with the
+  latest version of mice. Application
+  made to update on CRAN.
+
+=====================================
 Version 1.0-5
 =====================================
 

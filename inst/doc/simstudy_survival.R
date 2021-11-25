@@ -36,7 +36,7 @@ if (!exists('NPATS')){
 
 
 ###################################################
-### code chunk number 2: simstudy_survival.Rnw:85-339
+### code chunk number 2: simstudy_survival.Rnw:85-279
 ###################################################
 # Chunk 2
 
@@ -117,99 +117,39 @@ makeMarSurv <- function(data, pmissing = kPmiss){
 
 #### IMPUTATION FUNCTIONS FROM DOOVE AND VAN BUUREN ####
 
-mice.impute.rf <- function(y, ry, x, ntrees = 100,
-	nodesize = 5, ...){
-	# Use default mtry, i.e. one third the number of predictors for
-	# categorical variables, square root of the number of predictors
-	# for continuous dependent variables
-	xobs <- as.matrix(x[ry,])
-	xmis <- as.matrix(x[!ry,])
-	yobs <- y[ry]
-	# Function to create a single tree
-	onetree <- function(xobs, xmis, yobs){
-		fit <- randomForest(yobs ~ ., data = cbind(yobs, xobs),
-			ntree = 1, replace = TRUE, type = regression,
-			sampsize = length(yobs), nodesize = 5)
-		leafnr <- predict(object = fit, newdata = xobs,
-			nodes = T)
-		nodes <- predict(object = fit, newdata = xmis,
-			nodes = T)
-		# Return a vector of observed y values that are
-		# part of the same terminal leaf as the predicted
-		# missing y value
-		donor <- lapply(nodes, function(s){
-			yobs[leafnr == s]
-		})
-		return(donor)
-	}
-	# Create a matrix of vectors of donors, from the number
-	# of trees desired
-	forest <- sapply(1:(ntrees = ntrees), FUN = function(s){
-		onetree(xobs, xmis, yobs)
-	})
-	# For each missing value, randomly choose a donor value
-	# from any of the possible donor values across all trees
-	impute <- apply(forest, MARGIN = 1, FUN = function(s){
-		sample(unlist(s), 1)
-	})
-	return(impute)
-}
-
-mice.impute.cart <- function(y, ry, x, minbucket = 5, cp = 1e-04,
-	...){
-	xobs <- as.matrix(x[ry,])
-	xmis <- as.matrix(x[!ry,])
-	yobs <- y[ry]
-	if (is.factor(yobs)==F){
-		fit <- rpart(yobs~., data = cbind(yobs,xobs), method = "anova",
-			control = rpart.control(minbucket = minbucket, cp = cp), ...)
-		leafnr  <- floor(as.numeric(row.names(fit$frame[fit$where,])))
-		fit$frame$yval <- as.numeric(row.names(fit$frame))
-		nodes <- predict(object = fit, newdata = xmis)
-		donor <- lapply(nodes, function(s) yobs[leafnr == s])
-		impute <- sapply(1:length(donor), function(s){
-			sample(donor[[s]], 1)
-		})
-	} else {
-		fit <- rpart(yobs~., data = cbind(yobs, xobs),
-			method = "class", control = rpart.control(
-			minbucket = minbucket, cp = cp), ...)
-		nodes <- predict(object = fit, newdata = xmis)
-		impute <- apply(nodes, MARGIN = 1, FUN = function(s){
-			sample(colnames(nodes), size = 1, prob = s)
-		})
-	}
-	return(impute)
-}
-
 mice.impute.rfdoove10 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntrees = 10)
+	mice::mice.impute.rf(y = y, ry = ry, x = x, ntrees = 10)
 }
 
 mice.impute.rfdoove100 <- function(y, ry, x, ...){
-	mice.impute.rf(y = y, ry = ry, x = x, ntrees = 100)
+	mice::mice.impute.rf(y = y, ry = ry, x = x, ntrees = 100)
 }
 
 #### OUR MICE RANDOM FOREST FUNCTIONS ####
 
 mice.impute.rfcont5 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 5)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 5)
 }
 
 mice.impute.rfcont10 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 10)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 10)
 }
 
 mice.impute.rfcont20 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 20)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 20)
 }
 
 mice.impute.rfcont50 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 50)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 50)
 }
 
 mice.impute.rfcont100 <- function(y, ry, x, ...){
-	mice.impute.rfcont(y = y, ry = ry, x = x, ntree_cont = 100)
+	CALIBERrfimpute::mice.impute.rfcont(
+		y = y, ry = ry, x = x, ntree_cont = 100)
 }
 
 #### FUNCTIONS TO DO THE ANALYSIS ####
@@ -295,7 +235,7 @@ doanalysis <- function(x){
 
 
 ###################################################
-### code chunk number 3: simstudy_survival.Rnw:343-349
+### code chunk number 3: simstudy_survival.Rnw:283-289
 ###################################################
 # Chunk 3
 
@@ -306,7 +246,7 @@ mydata <- makeSurv(20000)
 
 
 ###################################################
-### code chunk number 4: simstudy_survival.Rnw:354-357
+### code chunk number 4: simstudy_survival.Rnw:294-297
 ###################################################
 # Chunk 4
 
@@ -314,7 +254,7 @@ summary(lm(x3 ~ x1*x2, data = mydata))
 
 
 ###################################################
-### code chunk number 5: simstudy_survival.Rnw:360-373
+### code chunk number 5: simstudy_survival.Rnw:300-313
 ###################################################
 # Chunk 5
 
@@ -332,7 +272,7 @@ title('Association of predictor variables x1 and x3')
 
 
 ###################################################
-### code chunk number 6: simstudy_survival.Rnw:378-404
+### code chunk number 6: simstudy_survival.Rnw:318-344
 ###################################################
 # Chunk 6
 
@@ -363,7 +303,7 @@ summary(coxph(myformula, data = simdata))
 
 
 ###################################################
-### code chunk number 7: simstudy_survival.Rnw:426-446
+### code chunk number 7: simstudy_survival.Rnw:366-386
 ###################################################
 # Chunk 7
 
@@ -388,7 +328,7 @@ if ('parallel' %in% loadedNamespaces() &&
 
 
 ###################################################
-### code chunk number 8: simstudy_survival.Rnw:475-514
+### code chunk number 8: simstudy_survival.Rnw:415-454
 ###################################################
 # Chunk 8
 
@@ -432,7 +372,7 @@ showTable <- function(coef){
 
 
 ###################################################
-### code chunk number 9: simstudy_survival.Rnw:527-530
+### code chunk number 9: simstudy_survival.Rnw:467-470
 ###################################################
 # Chunk 9
 
@@ -440,7 +380,7 @@ showTable('x1')
 
 
 ###################################################
-### code chunk number 10: simstudy_survival.Rnw:539-542
+### code chunk number 10: simstudy_survival.Rnw:479-482
 ###################################################
 # Chunk 10
 
@@ -448,7 +388,7 @@ showTable('x2')
 
 
 ###################################################
-### code chunk number 11: simstudy_survival.Rnw:552-555
+### code chunk number 11: simstudy_survival.Rnw:492-495
 ###################################################
 # Chunk 11
 
@@ -456,7 +396,7 @@ showTable('x3')
 
 
 ###################################################
-### code chunk number 12: simstudy_survival.Rnw:565-589
+### code chunk number 12: simstudy_survival.Rnw:505-529
 ###################################################
 # Chunk 12
 
@@ -485,7 +425,7 @@ title('Bias in estimate of x3 coefficient after\nmultiple imputation using RFcon
 
 
 ###################################################
-### code chunk number 13: simstudy_survival.Rnw:594-745
+### code chunk number 13: simstudy_survival.Rnw:534-689
 ###################################################
 # Chunk 13
 
@@ -498,12 +438,16 @@ title('Bias in estimate of x3 coefficient after\nmultiple imputation using RFcon
 variables <- c('x1', 'x2', 'x3')
 
 pstar <- function(x){
-	if (x < 0.001){
-		'***'
-	} else if (x < 0.01){
-		'**'
-	} else if (x < 0.05){
-		'*'
+	if (!is.na(x)){
+		if (x < 0.001){
+			'***'
+		} else if (x < 0.01){
+			'**'
+		} else if (x < 0.05){
+			'*'
+		} else {
+			''
+		}
 	} else {
 		''
 	}
@@ -641,7 +585,7 @@ maketable <- function(comparison){
 
 
 ###################################################
-### code chunk number 14: simstudy_survival.Rnw:754-757
+### code chunk number 14: simstudy_survival.Rnw:698-701
 ###################################################
 # Chunk 14
 
@@ -649,7 +593,7 @@ maketable(compareBias)
 
 
 ###################################################
-### code chunk number 15: simstudy_survival.Rnw:766-769
+### code chunk number 15: simstudy_survival.Rnw:710-713
 ###################################################
 # Chunk 15
 
@@ -657,7 +601,7 @@ maketable(compareVariance)
 
 
 ###################################################
-### code chunk number 16: simstudy_survival.Rnw:779-782
+### code chunk number 16: simstudy_survival.Rnw:723-726
 ###################################################
 # Chunk 16
 
@@ -665,7 +609,7 @@ maketable(compareCIlength)
 
 
 ###################################################
-### code chunk number 17: simstudy_survival.Rnw:791-794
+### code chunk number 17: simstudy_survival.Rnw:735-738
 ###################################################
 # Chunk 17
 
@@ -673,7 +617,7 @@ maketable(compareCoverage)
 
 
 ###################################################
-### code chunk number 18: simstudy_survival.Rnw:832-843
+### code chunk number 18: simstudy_survival.Rnw:772-783
 ###################################################
 # Chunk 18
 
@@ -689,7 +633,7 @@ showfunction('makeMarSurv')
 
 
 ###################################################
-### code chunk number 19: simstudy_survival.Rnw:848-862
+### code chunk number 19: simstudy_survival.Rnw:788-802
 ###################################################
 # Chunk 19
 
@@ -708,7 +652,7 @@ showfunction('doanalysis')
 
 
 ###################################################
-### code chunk number 20: simstudy_survival.Rnw:867-874
+### code chunk number 20: simstudy_survival.Rnw:807-814
 ###################################################
 # Chunk 20
 
@@ -720,7 +664,7 @@ showfunction('compareCoverage')
 
 
 ###################################################
-### code chunk number 21: simstudy_survival.Rnw:879-884
+### code chunk number 21: simstudy_survival.Rnw:819-824
 ###################################################
 # Chunk 21
 
