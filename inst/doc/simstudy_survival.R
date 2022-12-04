@@ -2,7 +2,7 @@
 ### Encoding: UTF-8
 
 ###################################################
-### code chunk number 1: simstudy_survival.Rnw:13-42
+### code chunk number 1: simstudy_survival.Rnw:13-43
 ###################################################
 # Chunk 1
 library(CALIBERrfimpute)
@@ -11,6 +11,7 @@ library(survival)
 library(xtable)
 library(rpart)
 library(mice)
+library(ranger)
 
 kPmiss <- 0.2 # probability of missingness
 kLogHR <- 0.5 # true log hazard ratio
@@ -36,7 +37,7 @@ if (!exists('NPATS')){
 
 
 ###################################################
-### code chunk number 2: simstudy_survival.Rnw:85-279
+### code chunk number 2: simstudy_survival.Rnw:86-280
 ###################################################
 # Chunk 2
 
@@ -235,7 +236,7 @@ doanalysis <- function(x){
 
 
 ###################################################
-### code chunk number 3: simstudy_survival.Rnw:283-289
+### code chunk number 3: simstudy_survival.Rnw:284-290
 ###################################################
 # Chunk 3
 
@@ -246,7 +247,7 @@ mydata <- makeSurv(20000)
 
 
 ###################################################
-### code chunk number 4: simstudy_survival.Rnw:294-297
+### code chunk number 4: simstudy_survival.Rnw:295-298
 ###################################################
 # Chunk 4
 
@@ -254,7 +255,7 @@ summary(lm(x3 ~ x1*x2, data = mydata))
 
 
 ###################################################
-### code chunk number 5: simstudy_survival.Rnw:300-313
+### code chunk number 5: simstudy_survival.Rnw:301-314
 ###################################################
 # Chunk 5
 
@@ -272,7 +273,7 @@ title('Association of predictor variables x1 and x3')
 
 
 ###################################################
-### code chunk number 6: simstudy_survival.Rnw:318-344
+### code chunk number 6: simstudy_survival.Rnw:319-345
 ###################################################
 # Chunk 6
 
@@ -303,7 +304,7 @@ summary(coxph(myformula, data = simdata))
 
 
 ###################################################
-### code chunk number 7: simstudy_survival.Rnw:366-386
+### code chunk number 7: simstudy_survival.Rnw:367-387
 ###################################################
 # Chunk 7
 
@@ -328,7 +329,7 @@ if ('parallel' %in% loadedNamespaces() &&
 
 
 ###################################################
-### code chunk number 8: simstudy_survival.Rnw:415-454
+### code chunk number 8: simstudy_survival.Rnw:416-455
 ###################################################
 # Chunk 8
 
@@ -372,7 +373,7 @@ showTable <- function(coef){
 
 
 ###################################################
-### code chunk number 9: simstudy_survival.Rnw:467-470
+### code chunk number 9: simstudy_survival.Rnw:468-471
 ###################################################
 # Chunk 9
 
@@ -380,7 +381,7 @@ showTable('x1')
 
 
 ###################################################
-### code chunk number 10: simstudy_survival.Rnw:479-482
+### code chunk number 10: simstudy_survival.Rnw:480-483
 ###################################################
 # Chunk 10
 
@@ -388,7 +389,7 @@ showTable('x2')
 
 
 ###################################################
-### code chunk number 11: simstudy_survival.Rnw:492-495
+### code chunk number 11: simstudy_survival.Rnw:493-496
 ###################################################
 # Chunk 11
 
@@ -396,7 +397,7 @@ showTable('x3')
 
 
 ###################################################
-### code chunk number 12: simstudy_survival.Rnw:505-529
+### code chunk number 12: simstudy_survival.Rnw:506-530
 ###################################################
 # Chunk 12
 
@@ -425,7 +426,7 @@ title('Bias in estimate of x3 coefficient after\nmultiple imputation using RFcon
 
 
 ###################################################
-### code chunk number 13: simstudy_survival.Rnw:534-689
+### code chunk number 13: simstudy_survival.Rnw:535-690
 ###################################################
 # Chunk 13
 
@@ -585,7 +586,7 @@ maketable <- function(comparison){
 
 
 ###################################################
-### code chunk number 14: simstudy_survival.Rnw:698-701
+### code chunk number 14: simstudy_survival.Rnw:699-702
 ###################################################
 # Chunk 14
 
@@ -593,7 +594,7 @@ maketable(compareBias)
 
 
 ###################################################
-### code chunk number 15: simstudy_survival.Rnw:710-713
+### code chunk number 15: simstudy_survival.Rnw:711-714
 ###################################################
 # Chunk 15
 
@@ -601,7 +602,7 @@ maketable(compareVariance)
 
 
 ###################################################
-### code chunk number 16: simstudy_survival.Rnw:723-726
+### code chunk number 16: simstudy_survival.Rnw:724-727
 ###################################################
 # Chunk 16
 
@@ -609,7 +610,7 @@ maketable(compareCIlength)
 
 
 ###################################################
-### code chunk number 17: simstudy_survival.Rnw:735-738
+### code chunk number 17: simstudy_survival.Rnw:736-739
 ###################################################
 # Chunk 17
 
@@ -617,7 +618,7 @@ maketable(compareCoverage)
 
 
 ###################################################
-### code chunk number 18: simstudy_survival.Rnw:772-783
+### code chunk number 18: simstudy_survival.Rnw:773-784
 ###################################################
 # Chunk 18
 
@@ -633,7 +634,7 @@ showfunction('makeMarSurv')
 
 
 ###################################################
-### code chunk number 19: simstudy_survival.Rnw:788-802
+### code chunk number 19: simstudy_survival.Rnw:789-803
 ###################################################
 # Chunk 19
 
@@ -652,7 +653,7 @@ showfunction('doanalysis')
 
 
 ###################################################
-### code chunk number 20: simstudy_survival.Rnw:807-814
+### code chunk number 20: simstudy_survival.Rnw:808-815
 ###################################################
 # Chunk 20
 
@@ -664,7 +665,7 @@ showfunction('compareCoverage')
 
 
 ###################################################
-### code chunk number 21: simstudy_survival.Rnw:819-824
+### code chunk number 21: simstudy_survival.Rnw:820-825
 ###################################################
 # Chunk 21
 

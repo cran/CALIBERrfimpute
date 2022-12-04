@@ -18,6 +18,7 @@ library(survival)
 library(xtable)
 library(rpart)
 library(mice)
+library(ranger)
 
 kPmiss <- 0.2 # probability of missingness
 kLogHR <- 0.5 # true log hazard ratio

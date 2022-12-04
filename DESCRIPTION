@@ -1,8 +1,8 @@
 Package: CALIBERrfimpute
 Type: Package
 Title: Multiple Imputation Using MICE and Random Forest
-Version: 1.0-6
-Date: 2021-11-25
+Version: 1.0-7
+Date: 2022-11-17
 Authors@R: c(person("Anoop", "Shah", role=c("aut", "cre"), email="anoop@doctors.org.uk"),
    person("Jonathan", "Bartlett", role="ctb"),
    person("Harry", "Hemingway", role="ths"),
@@ -12,7 +12,7 @@ Description: Functions to impute using random forest under full conditional spec
 License: GPL-3
 Depends: mice (>= 2.20)
 Imports: mvtnorm, randomForest
-Suggests: missForest, rpart, survival, xtable
+Suggests: missForest, rpart, survival, xtable, ranger
 Author: Anoop Shah [aut, cre],
   Jonathan Bartlett [ctb],
   Harry Hemingway [ths],
@@ -21,6 +21,6 @@ Author: Anoop Shah [aut, cre],
 Maintainer: Anoop Shah <anoop@doctors.org.uk>
 BuildVignettes: TRUE
 NeedsCompilation: no
-Packaged: 2021-11-25 12:06:52 UTC; anoop
+Packaged: 2022-12-04 20:46:54 UTC; anoop
 Repository: CRAN
-Date/Publication: 2021-11-25 23:20:05 UTC
+Date/Publication: 2022-12-04 21:02:32 UTC
