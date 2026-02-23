@@ -831,8 +831,6 @@ Run this script after loading the functions above.
 
 \begin{Schunk}
 \begin{Sinput}
-# Install CALIBERrfimpute if necessary:
-# install.packages("CALIBERrfimpute", repos="http://R-Forge.R-project.org")
 library(CALIBERrfimpute)
 library(missForest)
 library(survival)
@@ -873,9 +871,9 @@ maketable(compareCoverage)
 
 \begin{thebibliography}{1}
 
-\bibitem{shah} Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H. Comparison of Random Forest and Parametric Imputation Models for Imputing Missing Data Using MICE: A CALIBER Study. \textit{American Journal of Epidemiology} 2014. doi: \href{http://dx.doi.org/10.1093/aje/kwt312}{10.1093/aje/kwt312}
+\bibitem{shah} Shah AD, Bartlett JW, Carpenter J, Nicholas O, Hemingway H. Comparison of Random Forest and Parametric Imputation Models for Imputing Missing Data Using MICE: A CALIBER Study. \textit{American Journal of Epidemiology} 2014. doi: \href{https://doi.org/10.1093/aje/kwt312}{10.1093/aje/kwt312}
 
-\bibitem{doove} Doove LL, van Buuren S, Dusseldorp E. Recursive partitioning for missing data imputation in the presence of interaction effects. \textit{Computational Statistics and Data Analysis} 2014;72:92--104. doi: \href{http://dx.doi.org/10.1016/j.csda.2013.10.025}{10.1016/j.csda.2013.10.025}
+\bibitem{doove} Doove LL, van Buuren S, Dusseldorp E. Recursive partitioning for missing data imputation in the presence of interaction effects. \textit{Computational Statistics and Data Analysis} 2014;72:92--104. doi: \href{https://doi.org/10.1016/j.csda.2013.10.025}{10.1016/j.csda.2013.10.025}
 
 \end{thebibliography}
 

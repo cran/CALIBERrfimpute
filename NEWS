@@ -1,4 +1,13 @@
 =====================================
+Version 1.0-8
+=====================================
+
+CHANGES:
+
+- Corrections to format of citation and
+  URLs in documentation.
+
+=====================================
 Version 1.0-7
 =====================================
 
@@ -148,11 +157,3 @@ BUG FIXES:
 
 - Allow factors with missing categories in rfcat.
 - Allow single predictor for imputation models.
-
-=====================================
-Version 0.1-0
-=====================================
-
-CHANGES:
-
-- Initial version.
